@@ -1,3 +1,4 @@
 __pycache__
 .wpilib
 *.json
+ctre_sim
