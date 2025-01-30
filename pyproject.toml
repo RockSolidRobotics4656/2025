@@ -17,7 +17,7 @@ robotpy_extras = [
     # "cscore",
     # "navx",
     # "pathplannerlib",
-    # "phoenix5",
+    "phoenix5", #TODO: Remove when we can outdated dependency
     "phoenix6",
     # "photonvision",
     # "playingwithfusion",

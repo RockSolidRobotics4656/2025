@@ -20,6 +20,7 @@ class SwerveDrive(commands2.Subsystem):
             SwerveCell(7,  8,  9, turn_offset=-185+0),
             SwerveCell(10, 11, 12, turn_offset=0+0),
         )
+        # BUG:::::: !!!!!!!! Fix this this is in inches not meters
         dx = 18
         hdx = dx / 2
         self.kinematics = wpimath.kinematics.SwerveDrive4Kinematics(
@@ -35,6 +36,7 @@ class SwerveDrive(commands2.Subsystem):
         self.gyro.set_ticks_per_unit(1.0)
         self.gyro.reset()
     
+
     def telemetry(self, destination) -> commands2.Command:
         return commands2.ParallelCommandGroup(
             self.cells[0].telemetry(destination, "Cell 1"),
@@ -44,12 +46,12 @@ class SwerveDrive(commands2.Subsystem):
             commands2.RunCommand(lambda: ncoms.drtelem_tab.putNumber("gyangle", self.gyro()))
         )
     
-    def polar_drive(self, angle: Callable[[], float], mag: Callable[[], float]) -> commands2.Command:
+    def polar_drive(self, angle: Callable[[], float], mag: Callable[[], float], r: Callable[[], float]) -> commands2.Command:
         def update_cells():
             desired_state = wpimath.kinematics.ChassisSpeeds.fromFieldRelativeSpeeds(
                 math.cos(math.radians(angle()))*mag(),
                 math.sin(math.radians(angle()))*mag(),
-                0, # zero rotation
+                r() * 1/40,
                 wpimath.geometry.Rotation2d.fromDegrees(self.gyro())
             )
             states = self.kinematics.toSwerveModuleStates(desired_state)
@@ -107,12 +109,10 @@ class SwerveCell:
         target_angle = nstate.angle.degrees()
         self.turn_motor.set(self.swerve_func(current_angle, target_angle))
 
-    def telemetry(self, telem = None, name: Optional[str] = None) -> commands2.Command:
+    def telemetry(self, telem, name: Optional[str] = None) -> commands2.Command:
         name = name if name else ncoms.uname()
         def logtotelem():
             state = self.get()
-            if telem:
-                telem.putNumber(f"{name} Linear", state.distance)
-                telem.putNumber(f"{name} Turn", state.angle.degrees())
-            return None
+            telem.putNumber(f"{name} Linear", state.distance)
+            telem.putNumber(f"{name} Turn", state.angle.degrees())
         return commands2.RunCommand(logtotelem)
