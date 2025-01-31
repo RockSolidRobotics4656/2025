@@ -17,7 +17,7 @@ class Continuity:
         self.drivetrain = drive.SwerveDrive()
         self.wheels = depo.DepositorWheels(15, 1)
         self.wrist = depo.DepositorWrist(16, 0, enc=(2,3))
-        self.elevator = elevate.Elevator(13, 14)
+        self.elevator = elevate.Elevator(13, 14, 4)
         self.configure_bindings()
 
     def configure_bindings(self):
@@ -39,21 +39,35 @@ class Continuity:
             self.wrist.setDefaultCommand(
                 self.wrist.telemetry(ncoms.drtelem_tab)
             )
-            self.xbox.a().whileTrue(self.wrist.move(0.2))
-            self.xbox.y().whileTrue(self.wrist.move(-0.2))
+            self.xbox.a().whileTrue(self.wrist.test(0.2))
+            self.xbox.y().whileTrue(self.wrist.test(-0.2))
             self.xbox.b().onTrue(self.wrist.home())
-            self.xbox.x().whileTrue(self.wheels.eject(0.9))
         
         if True: # Enable Wheels
             self.wheels.setDefaultCommand(
                 self.wheels.telemetry(ncoms.drtelem_tab)
             )
+            self.xbox.leftTrigger().onTrue(
+                self.wheels.deposite(0.8)
+            )
+            self.xbox.rightTrigger().onTrue(
+                self.wheels.pickup(0.8)
+            )
 
         if True: # Enable Elevator
-            spd = 0.1
             # Positive speed is up
-            self.xbox.leftTrigger().whileTrue(self.elevator._move_raw(spd))
-            self.xbox.rightTrigger().whileTrue(self.elevator._move_raw(-spd))
+            self.elevator.setDefaultCommand(
+                self.elevator.telemetry(ncoms.drtelem_tab)
+            )
+            self.xbox.povUp().onTrue(
+                self.elevator.set_setpoint(0.0)
+            )
+            self.xbox.povRight().onTrue(
+                self.elevator.set_setpoint(0.1)
+            )
+            self.xbox.povDown().onTrue(
+                self.elevator.set_setpoint(0.3)
+            )
 
     def get_auto(self) -> commands2.Command:
         return commands2.ParallelCommandGroup(

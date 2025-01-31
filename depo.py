@@ -1,8 +1,10 @@
 from typing import *
 import commands2
+import wpimath.controller
 import encoder
 import wpilib
 import phoenix5
+import wpimath
 
 class DepositorWrist(commands2.Subsystem):
     def __init__(self, id: int, limit_slot: int, enc: Tuple[int, int]):
@@ -11,23 +13,31 @@ class DepositorWrist(commands2.Subsystem):
         self.switch = wpilib.DigitalInput(limit_slot)
         tmp = wpilib.Encoder(enc[0], enc[1])
         self.encoder = encoder.EncoderAdapter(tmp.get)
+        self.controller = wpimath.controller.PIDController(0.1, 0, 0)
 
     # Unsafe Operation / Unchecked
     def _move_raw(self, speed: float) -> None:
         self.wrist_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, speed),
 
     def move(self, speed: float) -> None:
-        def tmp(speed):
-            if speed > 0 and self.switch.get():
-                speed *= 0
-                self.encoder.reset()
-            self._move_raw(speed)
-        return commands2.RunCommand(tmp, self)
-
+        if speed > 0 and self.is_home():
+            speed *= 0
+            self.encoder.reset()
+        self._move_raw(speed)
+    
+    def test(self, speed: float) -> commands2.Command:
+        return commands2.StartEndCommand(
+            lambda: self.move(speed),
+            lambda: self.move(0),
+            self
+        )
+    
+    def is_home(self) -> bool:
+        return self.switch.get()
     def home(self) -> commands2.Command:
         return commands2.RunCommand(
             lambda: self.move(0.2)
-            ).until(self.switch.get())
+            ).until(self.is_home)
 
     def telemetry(self, telem) -> commands2.Command:
         def tel_func():
@@ -54,7 +64,9 @@ class DepositorWheels(commands2.Subsystem):
     def is_queued(self) -> bool:
         return not self.switch.get()
     def pickup(self, speed: float) -> commands2.Command:
-        return self.intake(speed).until(self.is_queued)
+        return self.intake(speed).until(self.is_queued).withTimeout(5.0)
+    def deposite(self, speed: float) -> commands2.Command:
+        return self.eject(speed).withTimeout(5.0)
     def telemetry(self, telem) -> commands2.Command:
         # BUG::: Should not depend on self - this is temporary
         return commands2.RunCommand(
