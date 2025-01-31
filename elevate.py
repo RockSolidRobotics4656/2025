@@ -20,11 +20,20 @@ class Elevator(commands2.Subsystem):
         self.controller = wpimath.controller.PIDController(.1, 0, 0) # TODO: Tune
         self.controller.setTolerance(0.01)
     
+    """
     def periodic(self) -> None:
         measurement = self.height()
         correction = self.controller.calculate(measurement)
         clamp = 0.15
         self.move(control.clamp_mag(clamp, correction))
+    """
+
+    def test(self, speed: float) -> commands2.Command:
+        return commands2.StartEndCommand(
+            lambda: self.move(speed),
+            lambda: self.move(0),
+            self
+        )
     
     def at_setpoint(self) -> bool:
         return self.controller.atSetpoint()
@@ -40,7 +49,7 @@ class Elevator(commands2.Subsystem):
         )
     
     def _move_raw(self, speed: float) -> None:
-        self.motora.set(speed)
+        self.motora.set(-speed)
         self.motorb.set(-speed)
     
     def move(self, speed: float) -> None:

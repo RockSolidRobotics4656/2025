@@ -9,16 +9,17 @@ import wpimath
 class DepositorWrist(commands2.Subsystem):
     def __init__(self, id: int, limit_slot: int, enc: Tuple[int, int]):
         super().__init__()
-        wrist_motor = phoenix5.VictorSPX(id)
+        self.wrist_motor = phoenix5.VictorSPX(id)
         self.switch = wpilib.DigitalInput(limit_slot)
         tmp = wpilib.Encoder(enc[0], enc[1])
         self.encoder = encoder.EncoderAdapter(tmp.get)
+        self.encoder.set_ticks_per_unit(-600/180)
         self.controller = wpimath.controller.PIDController(0.1, 0, 0)
 
     # Unsafe Operation / Unchecked
     def _move_raw(self, speed: float) -> None:
         self.wrist_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, speed),
-
+    
     def move(self, speed: float) -> None:
         if speed > 0 and self.is_home():
             speed *= 0
@@ -26,7 +27,7 @@ class DepositorWrist(commands2.Subsystem):
         self._move_raw(speed)
     
     def test(self, speed: float) -> commands2.Command:
-        return commands2.StartEndCommand(
+        return commands2.RunCommand(
             lambda: self.move(speed),
             lambda: self.move(0),
             self
@@ -34,6 +35,7 @@ class DepositorWrist(commands2.Subsystem):
     
     def is_home(self) -> bool:
         return self.switch.get()
+
     def home(self) -> commands2.Command:
         return commands2.RunCommand(
             lambda: self.move(0.2)

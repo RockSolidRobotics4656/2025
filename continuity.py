@@ -21,6 +21,7 @@ class Continuity:
         self.configure_bindings()
 
     def configure_bindings(self):
+        ncoms.drtelem_tab.putString("Debug", "What")
         if True: # Enable Drivetrain
             get_xbox_angle = lambda: math.degrees(math.atan2(
                 -self.xbox.getRightY(), self.xbox.getRightX()
@@ -34,13 +35,12 @@ class Continuity:
                     commands2.RunCommand(lambda: ncoms.drtelem_tab.putNumber("xbox", get_xbox_angle()))
                 )
             )
-        ncoms.drtelem_tab.putString("Debug", "What")
         if True: # Enable Wrist
             self.wrist.setDefaultCommand(
                 self.wrist.telemetry(ncoms.drtelem_tab)
             )
-            self.xbox.a().whileTrue(self.wrist.test(0.2))
-            self.xbox.y().whileTrue(self.wrist.test(-0.2))
+            self.xbox.a().whileTrue(self.wrist.test(0.3))
+            self.xbox.y().whileTrue(self.wrist.test(-0.3))
             self.xbox.b().onTrue(self.wrist.home())
         
         if True: # Enable Wheels
@@ -59,6 +59,7 @@ class Continuity:
             self.elevator.setDefaultCommand(
                 self.elevator.telemetry(ncoms.drtelem_tab)
             )
+            """
             self.xbox.povUp().onTrue(
                 self.elevator.set_setpoint(0.0)
             )
@@ -67,6 +68,16 @@ class Continuity:
             )
             self.xbox.povDown().onTrue(
                 self.elevator.set_setpoint(0.3)
+            )
+            """
+            self.xbox.povRight().onTrue(
+                self.elevator.home()
+            )
+            self.xbox.povUp().whileTrue(
+                self.elevator.test(0.15)
+            )
+            self.xbox.povDown().whileTrue(
+                self.elevator.test(-0.4)
             )
 
     def get_auto(self) -> commands2.Command:
