@@ -27,9 +27,9 @@ class DepositorWrist(commands2.Subsystem):
         self._move_raw(speed)
     
     def test(self, speed: float) -> commands2.Command:
-        return commands2.RunCommand(
+        return commands2.StartEndCommand(
             lambda: self.move(speed),
-            lambda: self.move(0),
+            lambda: self._move_raw(0),
             self
         )
     
@@ -46,7 +46,7 @@ class DepositorWrist(commands2.Subsystem):
             val = self.switch.get()
             telem.putBoolean("Wrist Limit", val)
             telem.putNumber("Wrist Value", self.encoder())
-        return commands2.RunCommand(tel_func, self) ##BUG:!!!!!!!!!! Fix this should not depend on self
+        return commands2.RunCommand(tel_func, self) 
 
 class DepositorWheels(commands2.Subsystem):
     def __init__(self, id: int, limit_slot: int):

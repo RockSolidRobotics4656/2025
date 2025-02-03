@@ -8,6 +8,7 @@ import wpimath.geometry
 import wpimath.kinematics
 import drive
 import elevate
+import april
 import depo
 import ncoms
 
@@ -27,7 +28,7 @@ class Continuity:
                 -self.xbox.getRightY(), self.xbox.getRightX()
             )) 
             get_xbox_mag = lambda: mathutil.distance(0, 0, self.xbox.getRightX(), self.xbox.getRightY()) * 0.3
-            get_xbox_turner = lambda: self.xbox.getLeftX()
+            get_xbox_turner = lambda: -self.xbox.getLeftX()
             self.drivetrain.setDefaultCommand(
                 commands2.ParallelCommandGroup(
                     self.drivetrain.polar_drive(get_xbox_angle, get_xbox_mag, get_xbox_turner),
@@ -47,38 +48,32 @@ class Continuity:
             self.wheels.setDefaultCommand(
                 self.wheels.telemetry(ncoms.drtelem_tab)
             )
-            self.xbox.leftTrigger().onTrue(
-                self.wheels.deposite(0.8)
+            self.xbox.leftTrigger().whileTrue(
+                self.wheels.eject(0.8)
             )
-            self.xbox.rightTrigger().onTrue(
-                self.wheels.pickup(0.8)
+            self.xbox.rightTrigger().whileTrue(
+                self.wheels.intake(0.8)
             )
 
         if True: # Enable Elevator
-            # Positive speed is up
             self.elevator.setDefaultCommand(
-                self.elevator.telemetry(ncoms.drtelem_tab)
-            )
-            """
-            self.xbox.povUp().onTrue(
-                self.elevator.set_setpoint(0.0)
-            )
-            self.xbox.povRight().onTrue(
-                self.elevator.set_setpoint(0.1)
-            )
-            self.xbox.povDown().onTrue(
-                self.elevator.set_setpoint(0.3)
-            )
-            """
-            self.xbox.povRight().onTrue(
-                self.elevator.home()
+                commands2.ParallelCommandGroup(
+                    self.elevator.telemetry(ncoms.drtelem_tab),
+                    commands2.RunCommand(
+                        lambda: april.test(ncoms.coproc_tab)
+                    ) # cheat
+                )
             )
             self.xbox.povUp().whileTrue(
-                self.elevator.test(0.15)
+                self.elevator.set_setpoint(0.0)
+            )
+            self.xbox.povRight().whileTrue(
+                self.elevator.set_setpoint(0.1)
             )
             self.xbox.povDown().whileTrue(
-                self.elevator.test(-0.4)
+                self.elevator.set_setpoint(0.2)
             )
+        
 
     def get_auto(self) -> commands2.Command:
         return commands2.ParallelCommandGroup(

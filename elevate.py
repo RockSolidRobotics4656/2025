@@ -13,34 +13,27 @@ class Elevator(commands2.Subsystem):
         self.motorb = rev.SparkMax(idb, rev.SparkMax.MotorType.kBrushless)
         enca = self.motora.getEncoder()
         encb = self.motorb.getEncoder()
-        func = lambda: enca.getPosition() + -encb.getPosition()
+        func = lambda: enca.getPosition() + encb.getPosition()
         self.height = encoder.EncoderAdapter(func)
-        self.height.set_ticks_per_unit(45.66)
+        self.height.set_ticks_per_unit(1.0)
         self.switch = wpilib.DigitalInput(swi_slot)
-        self.controller = wpimath.controller.PIDController(.1, 0, 0) # TODO: Tune
+        self.controller = wpimath.controller.PIDController(.3, 0, 0) # TODO: Tune
         self.controller.setTolerance(0.01)
     
-    """
     def periodic(self) -> None:
         measurement = self.height()
         correction = self.controller.calculate(measurement)
         clamp = 0.15
         self.move(control.clamp_mag(clamp, correction))
-    """
-
-    def test(self, speed: float) -> commands2.Command:
-        return commands2.StartEndCommand(
-            lambda: self.move(speed),
-            lambda: self.move(0),
-            self
-        )
     
     def at_setpoint(self) -> bool:
         return self.controller.atSetpoint()
+
     def set_setpoint(self, setpoint: float) -> commands2.Command:
         return commands2.InstantCommand(
             lambda: self.controller.setSetpoint(setpoint)
         )
+
     def goto(self, setpoint: float) -> commands2.Command:
         return commands2.SequentialCommandGroup(
             self.set_setpoint(setpoint),
@@ -65,12 +58,12 @@ class Elevator(commands2.Subsystem):
             lambda: self.move(-0.1),
             self
         ).until(self.is_bottomed)
+
     def is_bottomed(self) -> bool:
         return self.switch.get()
+
     def telemetry(self, telem) -> commands2.Command:
         def log():
             telem.putNumber("EHeight", self.height()),
             telem.putBoolean("AtBottom", self.is_bottomed()),
-        return commands2.RunCommand(
-            log, self
-        )
+        return commands2.RunCommand(log, self)
