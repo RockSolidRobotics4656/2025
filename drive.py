@@ -10,6 +10,19 @@ import rev
 import phoenix6
 import encoder
 import control
+import dataclasses
+
+@dataclasses.dataclass
+class Polar:
+    magnitude: float
+    angle: float
+
+def mix_polar(a: Polar, b: Polar) -> Polar:
+    dx = math.cos(math.radians(a.angle))*a.magnitude+math.cos(math.radians(b.angle))*b.magnitude
+    dy = math.sin(math.radians(a.angle))*a.magnitude+math.sin(math.radians(b.angle))*b.magnitude
+    dist = math.sqrt(dx**2 + dy**2)
+    angle = math.degrees(math.atan2(dy, dx))
+    return Polar(dist, angle)
 
 class SwerveDrive(commands2.Subsystem):
     def __init__(self) -> None:
@@ -20,14 +33,17 @@ class SwerveDrive(commands2.Subsystem):
             SwerveCell(7,  8,  9, turn_offset=-185+0),
             SwerveCell(10, 11, 12, turn_offset=0+0),
         )
-        # BUG:::::: !!!!!!!! Fix this this is in inches not meters
         dx = 18
-        hdx = dx / 2
-        self.kinematics = wpimath.kinematics.SwerveDrive4Kinematics(
+        hdx = dx / 2 / 1 # 39 inches per meter - replace 1 with 39
+        self.translations = (
             wpimath.geometry.Translation2d(hdx, hdx),
             wpimath.geometry.Translation2d(hdx, -hdx),
             wpimath.geometry.Translation2d(-hdx, -hdx),
             wpimath.geometry.Translation2d(-hdx, hdx)
+            )
+        self.kinematics = wpimath.kinematics.SwerveDrive4Kinematics(
+            self.translations[0], self.translations[1],
+            self.translations[2], self.translations[3]
         )
         hardware_gyro = phoenix6.hardware.Pigeon2(17)
         supplier = hardware_gyro.get_yaw().as_supplier()
@@ -37,30 +53,52 @@ class SwerveDrive(commands2.Subsystem):
         self.gyro.reset()
     
 
-    def telemetry(self, destination) -> commands2.Command:
-        return commands2.ParallelCommandGroup(
-            self.cells[0].telemetry(destination, "Cell 1"),
-            self.cells[1].telemetry(destination, "Cell 2"),
-            self.cells[2].telemetry(destination, "Cell 3"),
-            self.cells[3].telemetry(destination, "Cell 4"),
-            commands2.RunCommand(lambda: ncoms.drtelem_tab.putNumber("gyangle", self.gyro()))
-        )
+    def periodic(self):
+        self.cells[0].telemetry(ncoms.drtelem_tab, "Cell 1"),
+        self.cells[1].telemetry(ncoms.drtelem_tab, "Cell 2"),
+        self.cells[2].telemetry(ncoms.drtelem_tab, "Cell 3"),
+        self.cells[3].telemetry(ncoms.drtelem_tab, "Cell 4"),
     
-    def polar_drive(self, angle: Callable[[], float], mag: Callable[[], float], r: Callable[[], float]) -> commands2.Command:
-        def update_cells():
-            desired_state = wpimath.kinematics.ChassisSpeeds.fromFieldRelativeSpeeds(
-                math.cos(math.radians(angle()))*mag(),
-                math.sin(math.radians(angle()))*mag(),
-                r() * 1/40,
-                wpimath.geometry.Rotation2d.fromDegrees(self.gyro())
-            )
-            states = self.kinematics.toSwerveModuleStates(desired_state)
-            for cell, state in zip(self.cells, states):
-                cell.set(state)
-        return commands2.RunCommand(update_cells, self)
-        
+    def create_odometry(self):
+        angle = wpimath.geometry.Rotation2d.fromDegrees(self.gyro())
+        return wpimath.kinematics.SwerveDrive4Odometry(self.kinematics, angle,
+            (
+                self.cells[0].get(),
+                self.cells[1].get(),
+                self.cells[2].get(),
+                self.cells[3].get(),
+            ))
 
+    def update_odo(self, odo: wpimath.kinematics.SwerveDrive4Odometry):
+        angle = wpimath.geometry.Rotation2d.fromDegrees(self.gyro())
+        odo.update(angle, (
+                self.cells[0].get(),
+                self.cells[1].get(),
+                self.cells[2].get(),
+                self.cells[3].get(),
+            ))
+    
+    def polar_drive(self, trans: Polar, r: float, relative=False):
+        desired_state = wpimath.kinematics.ChassisSpeeds.fromFieldRelativeSpeeds(
+            math.cos(math.radians(trans.angle))*trans.magnitude,
+            math.sin(math.radians(trans.angle))*trans.magnitude,
+            r * 1/40,
+            wpimath.geometry.Rotation2d.fromDegrees(self.gyro())
+        )
+        if relative:
+            desired_state = wpimath.kinematics.ChassisSpeeds(
+                math.cos(math.radians(trans.angle))*trans.magnitude,
+                math.sin(math.radians(trans.angle))*trans.magnitude,
+                r * 1/40
+                )
+        states = self.kinematics.toSwerveModuleStates(desired_state)
+        for cell, state in zip(self.cells, states):
+            cell.set(state)
 
+    def controller_drive(self, dir: Callable[[], Polar], r: Callable[[], float]):
+        def tick():
+            self.polar_drive(dir(), r(), relative=False)
+        return commands2.RunCommand(tick, self)
 
 class SwerveCell:
     def __init__(self, linearid: int, turnid: int, angleid: int, turn_offset: float = 0.0):
@@ -69,7 +107,7 @@ class SwerveCell:
         self.linear_motor = rev.SparkMax(linearid, rev.SparkMax.MotorType.kBrushless)
         _linear_encoder = self.linear_motor.getEncoder()
         self.linear_encoder = encoder.EncoderAdapter(_linear_encoder.getPosition)
-        self.linear_encoder.set_ticks_per_unit(1/10)
+        self.linear_encoder.set_ticks_per_unit(25)
         self.linear_encoder.reset()
 
         # Turn
@@ -109,10 +147,8 @@ class SwerveCell:
         target_angle = nstate.angle.degrees()
         self.turn_motor.set(self.swerve_func(current_angle, target_angle))
 
-    def telemetry(self, telem, name: Optional[str] = None) -> commands2.Command:
+    def telemetry(self, telem, name: Optional[str] = None) -> None:
         name = name if name else ncoms.uname()
-        def logtotelem():
-            state = self.get()
-            telem.putNumber(f"{name} Linear", state.distance)
-            telem.putNumber(f"{name} Turn", state.angle.degrees())
-        return commands2.RunCommand(logtotelem)
+        state = self.get()
+        telem.putNumber(f"{name} Linear", state.distance)
+        telem.putNumber(f"{name} Turn", state.angle.degrees())

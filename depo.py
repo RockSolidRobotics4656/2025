@@ -1,5 +1,7 @@
 from typing import *
+import ncoms
 import commands2
+import control
 import wpimath.controller
 import encoder
 import wpilib
@@ -13,40 +15,64 @@ class DepositorWrist(commands2.Subsystem):
         self.switch = wpilib.DigitalInput(limit_slot)
         tmp = wpilib.Encoder(enc[0], enc[1])
         self.encoder = encoder.EncoderAdapter(tmp.get)
-        self.encoder.set_ticks_per_unit(-600/180)
-        self.controller = wpimath.controller.PIDController(0.1, 0, 0)
+        self.encoder.set_ticks_per_unit(-710 / 225)
+        self.controller = wpimath.controller.PIDController(0.2, 0, 0)
+        self.controller.setTolerance(1)
 
     # Unsafe Operation / Unchecked
     def _move_raw(self, speed: float) -> None:
-        self.wrist_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, speed),
+        self.wrist_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, -speed),
     
     def move(self, speed: float) -> None:
-        if speed > 0 and self.is_home():
+        if speed < 0 and self.is_home():
             speed *= 0
             self.encoder.reset()
         self._move_raw(speed)
     
+    def update(self) -> commands2.Command:
+        def up():
+            measurement = self.encoder()
+            correction = self.controller.calculate(measurement)
+            clamp = 0.8
+            self.move(control.clamp_mag(clamp, correction))
+        return commands2.RunCommand(up, self)
+    
     def test(self, speed: float) -> commands2.Command:
         return commands2.StartEndCommand(
             lambda: self.move(speed),
-            lambda: self._move_raw(0),
-            self
+            lambda: self.move(0),
         )
     
+    def at_setpoint(self) -> bool:
+        return self.controller.atSetpoint()
+
+    def set_setpoint(self, setpoint: float) -> commands2.Command:
+        return commands2.InstantCommand(
+            lambda: self.controller.setSetpoint(setpoint), self
+        )
+
+    def goto(self, setpoint: float) -> commands2.Command:
+        return commands2.SequentialCommandGroup(
+            self.set_setpoint(setpoint),
+            self.update().until(self.at_setpoint),
+            commands2.InstantCommand(lambda: self.move(0))
+        )
+
     def is_home(self) -> bool:
         return self.switch.get()
 
     def home(self) -> commands2.Command:
-        return commands2.RunCommand(
-            lambda: self.move(0.2)
-            ).until(self.is_home)
+        return commands2.SequentialCommandGroup(
+            commands2.RunCommand(
+                lambda: self.move(-0.35), self
+                ).until(self.is_home),
+            commands2.InstantCommand(lambda: self.encoder.reset(), self),
+        )
 
-    def telemetry(self, telem) -> commands2.Command:
-        def tel_func():
-            val = self.switch.get()
-            telem.putBoolean("Wrist Limit", val)
-            telem.putNumber("Wrist Value", self.encoder())
-        return commands2.RunCommand(tel_func, self) 
+    def periodic(self):
+        val = self.switch.get()
+        ncoms.wrist_tab.putBoolean("Wrist Limit", val)
+        ncoms.wrist_tab.putNumber("Wrist Value", self.encoder())
 
 class DepositorWheels(commands2.Subsystem):
     def __init__(self, id: int, limit_slot: int):
@@ -65,13 +91,9 @@ class DepositorWheels(commands2.Subsystem):
         )
     def is_queued(self) -> bool:
         return not self.switch.get()
-    def pickup(self, speed: float) -> commands2.Command:
-        return self.intake(speed).until(self.is_queued).withTimeout(5.0)
-    def deposite(self, speed: float) -> commands2.Command:
-        return self.eject(speed).withTimeout(5.0)
-    def telemetry(self, telem) -> commands2.Command:
-        # BUG::: Should not depend on self - this is temporary
-        return commands2.RunCommand(
-            lambda: telem.putBoolean("Queued", self.is_queued()),
-            self
-        )
+    def pickup(self) -> commands2.Command:
+        return self.intake(1.0).until(self.is_queued).withTimeout(3.0)
+    def deposite(self) -> commands2.Command:
+        return self.eject(1.0).withTimeout(3.0)
+    def periodic(self):
+        ncoms.wheel_tab.putBoolean("Queued", self.is_queued())

@@ -19,6 +19,7 @@ class Robot(commands2.TimedCommandRobot):
     def teleopInit(self):
         if self.auto:
             self.auto.cancel()
+        self.container.teleop_start().schedule()
     
     def testInit(): pass
     def disabledInit(self): pass

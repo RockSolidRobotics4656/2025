@@ -8,75 +8,103 @@ import wpimath.geometry
 import wpimath.kinematics
 import drive
 import elevate
+import action
 import april
 import depo
 import ncoms
+import move
+
+from wpimath import applyDeadband
+
+debug = False
 
 class Continuity:
     def __init__(self):
         self.xbox = commands2.button.CommandXboxController(0)
         self.drivetrain = drive.SwerveDrive()
+        self.global_odo = self.drivetrain.create_odometry()
         self.wheels = depo.DepositorWheels(15, 1)
-        self.wrist = depo.DepositorWrist(16, 0, enc=(2,3))
+        self.wrist = depo.DepositorWrist(16, 0, enc=(2, 3))
         self.elevator = elevate.Elevator(13, 14, 4)
+        self.vision = april.VisionSystem("front")
+
         self.configure_bindings()
 
+    def telemetry(self, telem) -> commands2.Command:
+        def odo_telem():
+            pose = self.global_odo.getPose()
+            telem.putNumber("gx", pose.X())
+            telem.putNumber("gy", pose.Y())
+            telem.putNumber("ga", pose.rotation().degrees())
+        return commands2.RunCommand(odo_telem)
     def configure_bindings(self):
-        ncoms.drtelem_tab.putString("Debug", "What")
+        ncoms.drtelem_tab.putString("Debug", "No")
         if True: # Enable Drivetrain
-            get_xbox_angle = lambda: math.degrees(math.atan2(
-                -self.xbox.getRightY(), self.xbox.getRightX()
-            )) 
-            get_xbox_mag = lambda: mathutil.distance(0, 0, self.xbox.getRightX(), self.xbox.getRightY()) * 0.3
-            get_xbox_turner = lambda: -self.xbox.getLeftX()
-            self.drivetrain.setDefaultCommand(
-                commands2.ParallelCommandGroup(
-                    self.drivetrain.polar_drive(get_xbox_angle, get_xbox_mag, get_xbox_turner),
-                    self.drivetrain.telemetry(ncoms.drtelem_tab),
-                    commands2.RunCommand(lambda: ncoms.drtelem_tab.putNumber("xbox", get_xbox_angle()))
-                )
-            )
-        if True: # Enable Wrist
-            self.wrist.setDefaultCommand(
-                self.wrist.telemetry(ncoms.drtelem_tab)
-            )
-            self.xbox.a().whileTrue(self.wrist.test(0.3))
-            self.xbox.y().whileTrue(self.wrist.test(-0.3))
-            self.xbox.b().onTrue(self.wrist.home())
+            def get_control():
+                    angle = math.degrees(math.atan2(
+                        -self.xbox.getRightY(), self.xbox.getRightX()
+                    )) 
+                    mag = wpimath.applyDeadband(mathutil.distance(0, 0, self.xbox.getRightX(), self.xbox.getRightY()) * 0.3, 0.05)
+                    return drive.Polar(mag, angle)
+            get_xbox_turner = lambda: wpimath.applyDeadband(-self.xbox.getLeftX(), 0.05)
+            self.drivetrain.setDefaultCommand(commands2.ParallelCommandGroup(
+                self.drivetrain.controller_drive(get_control, get_xbox_turner),
+                commands2.RunCommand(lambda: self.drivetrain.update_odo(self.global_odo))
+            ))
+
+            start = wpimath.geometry.Pose2d(0, 0, wpimath.geometry.Rotation2d(self.drivetrain.gyro()))
+            end = wpimath.geometry.Pose2d(0.5, 0.5, wpimath.geometry.Rotation2d(self.drivetrain.gyro()))
+            properties = move.MoveProperties(speed = 0.2)
+            self.xbox.b().onTrue(move.StandardMove(self.drivetrain, start, end, properties).asProxy())
+            self.xbox.a().onTrue(move.AprilAlign(self.vision, self.drivetrain, properties))
+
+        if True and not debug: # Enable Elevator
+            self.elevator.setDefaultCommand(self.elevator.update())
+        if True and debug:
+            self.xbox.povUp().whileTrue(self.elevator.test(0.2))
+            self.xbox.povDown().whileTrue(self.elevator.test(-0.1))
+
+        if True and not debug: # Enable Wrist
+            self.wrist.setDefaultCommand(self.wrist.update())
+        if True and debug:
+            self.xbox.y().whileTrue(self.wrist.test(0.2))
+            self.xbox.a().whileTrue(self.wrist.test(-0.2))
         
         if True: # Enable Wheels
-            self.wheels.setDefaultCommand(
-                self.wheels.telemetry(ncoms.drtelem_tab)
-            )
-            self.xbox.leftTrigger().whileTrue(
-                self.wheels.eject(0.8)
-            )
-            self.xbox.rightTrigger().whileTrue(
-                self.wheels.intake(0.8)
-            )
+            self.xbox.rightTrigger().onTrue(self.wheels.pickup())
+        if True and debug:
+            self.xbox.leftTrigger().onTrue(self.wheels.deposite())
+        
+        if True and not debug: # Enable setpoints
+            self.xbox.povLeft().onTrue(action.goto_l1(self.elevator, self.wrist))
+            self.xbox.povLeft().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
 
-        if True: # Enable Elevator
-            self.elevator.setDefaultCommand(
-                commands2.ParallelCommandGroup(
-                    self.elevator.telemetry(ncoms.drtelem_tab),
-                    commands2.RunCommand(
-                        lambda: april.test(ncoms.coproc_tab)
-                    ) # cheat
-                )
-            )
-            self.xbox.povUp().whileTrue(
-                self.elevator.set_setpoint(0.0)
-            )
-            self.xbox.povRight().whileTrue(
-                self.elevator.set_setpoint(0.1)
-            )
-            self.xbox.povDown().whileTrue(
-                self.elevator.set_setpoint(0.2)
+            self.xbox.povUp().onTrue(action.goto_l4(self.elevator, self.wrist))
+            self.xbox.povUp().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
+
+            self.xbox.povRight().onTrue(action.goto_l3(self.elevator, self.wrist))
+            self.xbox.povRight().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
+
+            self.xbox.povDown().onTrue(action.goto_l2(self.elevator, self.wrist))
+            self.xbox.povDown().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
+        
+        if True and not debug: #Enable cage
+            self.xbox.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
+            self.xbox.leftTrigger().onFalse(action.downcage(self.elevator))
+        
+        if True:
+            self.xbox.rightBumper().onTrue(
+                commands2.InstantCommand(self.vision)
             )
         
-
+    
+    def teleop_start(self) -> commands2.Command:
+        return commands2.SequentialCommandGroup(
+            self.elevator.home(),
+            action.receive(self.elevator, self.wrist)
+            )
+        
     def get_auto(self) -> commands2.Command:
         return commands2.ParallelCommandGroup(
-            commands2.PrintCommand("Hello, World(Driver Station)!"),
-            self.drivetrain.telemetry(ncoms.drtelem_tab)
+            commands2.PrintCommand("Hello, World(Driver Station)!")
         )
