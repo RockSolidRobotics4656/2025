@@ -67,7 +67,7 @@ class SwerveDrive(commands2.Subsystem):
                 self.cells[1].get(),
                 self.cells[2].get(),
                 self.cells[3].get(),
-            ))
+            ), wpimath.geometry.Pose2d(0, 0, wpimath.geometry.Rotation2d.fromDegrees(0)))
 
     def update_odo(self, odo: wpimath.kinematics.SwerveDrive4Odometry):
         angle = wpimath.geometry.Rotation2d.fromDegrees(self.gyro())

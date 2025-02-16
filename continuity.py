@@ -52,11 +52,8 @@ class Continuity:
                 commands2.RunCommand(lambda: self.drivetrain.update_odo(self.global_odo))
             ))
 
-            start = wpimath.geometry.Pose2d(0, 0, wpimath.geometry.Rotation2d(self.drivetrain.gyro()))
-            end = wpimath.geometry.Pose2d(0.5, 0.5, wpimath.geometry.Rotation2d(self.drivetrain.gyro()))
-            properties = move.MoveProperties(speed = 0.2)
-            self.xbox.b().onTrue(move.StandardMove(self.drivetrain, start, end, properties).asProxy())
-            self.xbox.a().onTrue(move.AprilAlign(self.vision, self.drivetrain, properties))
+            self.xbox.b().onTrue(move.forward(self.drivetrain))
+            self.xbox.a().onTrue(move.tmpapalign(self.vision, self.drivetrain))
 
         if True and not debug: # Enable Elevator
             self.elevator.setDefaultCommand(self.elevator.update())
@@ -77,20 +74,16 @@ class Continuity:
         
         if True and not debug: # Enable setpoints
             self.xbox.povLeft().onTrue(action.goto_l1(self.elevator, self.wrist))
-            self.xbox.povLeft().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
-
             self.xbox.povUp().onTrue(action.goto_l4(self.elevator, self.wrist))
-            self.xbox.povUp().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
-
             self.xbox.povRight().onTrue(action.goto_l3(self.elevator, self.wrist))
-            self.xbox.povRight().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
-
             self.xbox.povDown().onTrue(action.goto_l2(self.elevator, self.wrist))
-            self.xbox.povDown().onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
+
+            either = self.xbox.povLeft() or self.xbox.povUp() or self.xbox.povRight() or self.xbox.povDown()
+            either.onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
         
         if True and not debug: #Enable cage
             self.xbox.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
-            self.xbox.leftTrigger().onFalse(action.downcage(self.elevator))
+            self.xbox.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist))
         
         if True:
             self.xbox.rightBumper().onTrue(
