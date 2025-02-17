@@ -13,15 +13,16 @@ import april
 import depo
 import ncoms
 import move
+import const
 
 from wpimath import applyDeadband
 
-debug = False
+debug = True
 
 class Continuity:
     def __init__(self):
         self.xbox = commands2.button.CommandXboxController(0)
-        self.drivetrain = drive.SwerveDrive()
+        self.drivetrain = drive.SwerveDrive(enc_off=const.enc_offsets)
         self.global_odo = self.drivetrain.create_odometry()
         self.wheels = depo.DepositorWheels(15, 1)
         self.wrist = depo.DepositorWrist(16, 0, enc=(2, 3))
@@ -72,7 +73,7 @@ class Continuity:
         if True and debug:
             self.xbox.leftTrigger().onTrue(self.wheels.deposite())
         
-        if True and not debug: # Enable setpoints
+        if False and not debug: # Enable setpoints
             self.xbox.povLeft().onTrue(action.goto_l1(self.elevator, self.wrist))
             self.xbox.povUp().onTrue(action.goto_l4(self.elevator, self.wrist))
             self.xbox.povRight().onTrue(action.goto_l3(self.elevator, self.wrist))
@@ -80,12 +81,11 @@ class Continuity:
 
             either = self.xbox.povLeft() or self.xbox.povUp() or self.xbox.povRight() or self.xbox.povDown()
             either.onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
-        
-        if True and not debug: #Enable cage
+
             self.xbox.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
             self.xbox.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist))
         
-        if True:
+        if False: # Enable Polling the Vision Findings
             self.xbox.rightBumper().onTrue(
                 commands2.InstantCommand(self.vision)
             )

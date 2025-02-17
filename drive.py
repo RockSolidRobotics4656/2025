@@ -25,13 +25,13 @@ def mix_polar(a: Polar, b: Polar) -> Polar:
     return Polar(dist, angle)
 
 class SwerveDrive(commands2.Subsystem):
-    def __init__(self) -> None:
+    def __init__(self, enc_off=(0, 0, 0, 0)) -> None:
         super().__init__()
         self.cells = (
-            SwerveCell(1,  2,  3, turn_offset=-250+0),
-            SwerveCell(4,  5,  6, turn_offset=-127+0),
-            SwerveCell(7,  8,  9, turn_offset=-185+0),
-            SwerveCell(10, 11, 12, turn_offset=0+0),
+            SwerveCell(1,  2,  3, turn_offset=enc_off[0]),
+            SwerveCell(4,  5,  6, turn_offset=enc_off[1]),
+            SwerveCell(7,  8,  9, turn_offset=enc_off[2]),
+            SwerveCell(10, 11, 12, turn_offset=enc_off[3]),
         )
         dx = 18
         hdx = dx / 2 / 1 # 39 inches per meter - replace 1 with 39
