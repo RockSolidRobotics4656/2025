@@ -10,6 +10,7 @@ ele_tab = shuffleboard.getSubTable("4656 Elevator")
 wrist_tab = shuffleboard.getSubTable("4656 Wrist")
 wheel_tab = shuffleboard.getSubTable("4656 Wheels")
 dbg_tab = shuffleboard.getSubTable("4656 Debug")
+funn_tab = shuffleboard.getSubTable("4656 Funnel")
 
 
 _uname_iter = itertools.count(start=1, step=1)

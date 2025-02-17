@@ -6,12 +6,17 @@ import wpimath.controller
 import encoder
 import wpilib
 import phoenix5
+import rev
 import wpimath
 
 class DepositorWrist(commands2.Subsystem):
-    def __init__(self, id: int, limit_slot: int, enc: Tuple[int, int]):
+    def __init__(self, janky: bool, id: int, limit_slot: int, enc: Tuple[int, int]):
         super().__init__()
-        self.wrist_motor = phoenix5.VictorSPX(id)
+        self.janky = janky
+        if self.janky:
+            self.wrist_motor = phoenix5.VictorSPX(id)
+        else:
+            self.wrist_motor = rev.SparkMax(id, rev.SparkMax.MotorType.kBrushed)
         self.switch = wpilib.DigitalInput(limit_slot)
         tmp = wpilib.Encoder(enc[0], enc[1])
         self.encoder = encoder.EncoderAdapter(tmp.get)
@@ -21,7 +26,10 @@ class DepositorWrist(commands2.Subsystem):
 
     # Unsafe Operation / Unchecked
     def _move_raw(self, speed: float) -> None:
-        self.wrist_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, -speed),
+        if self.janky:
+            self.wrist_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, -speed),
+        else:
+            self.wrist_motor.set(-speed)
     
     def move(self, speed: float) -> None:
         if speed < 0 and self.is_home():
@@ -75,18 +83,27 @@ class DepositorWrist(commands2.Subsystem):
         ncoms.wrist_tab.putNumber("Wrist Value", self.encoder())
 
 class DepositorWheels(commands2.Subsystem):
-    def __init__(self, id: int, limit_slot: int):
+    def __init__(self, janky: bool, id: int, limit_slot: int):
         super().__init__()
-        self.wheel_motor = phoenix5.VictorSPX(id)
+        self.janky = janky
+        if janky:
+            self.wheel_motor = phoenix5.VictorSPX(id)
+        else:
+            self.wheel_motor = rev.SparkMax(id, rev.SparkMax.MotorType.kBrushed)
         self.switch = wpilib.DigitalInput(limit_slot)
     def intake(self, speed: float) -> commands2.Command:
         return self.move_wheels(-speed)
     def eject(self, speed: float) -> commands2.Command:
         return self.move_wheels(speed)
+    def _raw(self, speed: float):
+        if self.janky:
+            self.wheel_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, speed),
+        else:
+            self.wheel_motor.set(-speed)
     def move_wheels(self, speed: float) -> commands2.Command:
         return commands2.StartEndCommand(
-            lambda: self.wheel_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, speed),
-            lambda: self.wheel_motor.set(phoenix5.VictorSPXControlMode.PercentOutput, 0), 
+            lambda: self._raw(speed),
+            lambda: self._raw(0), 
             self
         )
     def is_queued(self) -> bool:

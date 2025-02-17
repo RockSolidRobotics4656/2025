@@ -3,6 +3,7 @@ import wpimath
 import commands2
 import mathutil
 import math
+from wpimath import applyDeadband
 
 import wpimath.geometry
 import wpimath.kinematics
@@ -14,30 +15,25 @@ import depo
 import ncoms
 import move
 import const
+import lock
+import funnel
 
-from wpimath import applyDeadband
 
-debug = True
+debug = False
 
 class Continuity:
     def __init__(self):
         self.xbox = commands2.button.CommandXboxController(0)
         self.drivetrain = drive.SwerveDrive(enc_off=const.enc_offsets)
-        self.global_odo = self.drivetrain.create_odometry()
-        self.wheels = depo.DepositorWheels(15, 1)
-        self.wrist = depo.DepositorWrist(16, 0, enc=(2, 3))
+        self.wheels = depo.DepositorWheels(const.janky, 15, 1)
+        self.wrist = depo.DepositorWrist(const.janky, 16, 0, enc=(2, 3))
         self.elevator = elevate.Elevator(13, 14, 4)
         self.vision = april.VisionSystem("front")
+        self.lock = lock.ClimbLock(6)
+        self.funnel = funnel.Funnel(5)
 
         self.configure_bindings()
 
-    def telemetry(self, telem) -> commands2.Command:
-        def odo_telem():
-            pose = self.global_odo.getPose()
-            telem.putNumber("gx", pose.X())
-            telem.putNumber("gy", pose.Y())
-            telem.putNumber("ga", pose.rotation().degrees())
-        return commands2.RunCommand(odo_telem)
     def configure_bindings(self):
         ncoms.drtelem_tab.putString("Debug", "No")
         if True: # Enable Drivetrain
@@ -48,13 +44,13 @@ class Continuity:
                     mag = wpimath.applyDeadband(mathutil.distance(0, 0, self.xbox.getRightX(), self.xbox.getRightY()) * 0.3, 0.05)
                     return drive.Polar(mag, angle)
             get_xbox_turner = lambda: wpimath.applyDeadband(-self.xbox.getLeftX(), 0.05)
-            self.drivetrain.setDefaultCommand(commands2.ParallelCommandGroup(
+            self.drivetrain.setDefaultCommand(
                 self.drivetrain.controller_drive(get_control, get_xbox_turner),
-                commands2.RunCommand(lambda: self.drivetrain.update_odo(self.global_odo))
-            ))
+            )
 
-            self.xbox.b().onTrue(move.forward(self.drivetrain))
-            self.xbox.a().onTrue(move.tmpapalign(self.vision, self.drivetrain))
+            # Major TODOS
+            #self.xbox.b().onTrue(move.forward(self.drivetrain))
+            #self.xbox.a().onTrue(move.tmpapalign(self.vision, self.drivetrain))
 
         if True and not debug: # Enable Elevator
             self.elevator.setDefaultCommand(self.elevator.update())
@@ -73,7 +69,7 @@ class Continuity:
         if True and debug:
             self.xbox.leftTrigger().onTrue(self.wheels.deposite())
         
-        if False and not debug: # Enable setpoints
+        if True and not debug: # Enable setpoints
             self.xbox.povLeft().onTrue(action.goto_l1(self.elevator, self.wrist))
             self.xbox.povUp().onTrue(action.goto_l4(self.elevator, self.wrist))
             self.xbox.povRight().onTrue(action.goto_l3(self.elevator, self.wrist))
