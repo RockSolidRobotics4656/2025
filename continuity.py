@@ -49,14 +49,17 @@ class Continuity:
             )
 
             # Major TODOS
-            #self.xbox.b().onTrue(move.forward(self.drivetrain))
-            #self.xbox.a().onTrue(move.tmpapalign(self.vision, self.drivetrain))
+            self.xbox.b().onTrue(move.RelativeMove(self.drivetrain,
+                wpimath.geometry.Translation2d(0.5, 0.5)))
+            self.xbox.y().onTrue(move.AbsoluteRotate(self.drivetrain, 45))
+            self.xbox.a().onTrue(move.tmpapalign(self.vision, self.drivetrain))
 
         if True and not debug: # Enable Elevator
             self.elevator.setDefaultCommand(self.elevator.update())
         if True and debug:
             self.xbox.povUp().whileTrue(self.elevator.test(0.2))
             self.xbox.povDown().whileTrue(self.elevator.test(-0.1))
+            self.xbox.povLeft().whileTrue(self.elevator.test(-0.45))
 
         if True and not debug: # Enable Wrist
             self.wrist.setDefaultCommand(self.wrist.update())
@@ -81,6 +84,9 @@ class Continuity:
             self.xbox.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
             self.xbox.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist))
         
+        if True:
+            self.xbox.leftBumper().onTrue(self.lock.lock())
+            self.xbox.rightBumper().onTrue(self.lock.unlock())
         if False: # Enable Polling the Vision Findings
             self.xbox.rightBumper().onTrue(
                 commands2.InstantCommand(self.vision)

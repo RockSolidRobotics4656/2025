@@ -6,63 +6,93 @@ import math
 import ncoms
 import control
 import april
+import wpimath
+import wpilib
 import dataclasses
 
-def forward(drivetrain: drive.SwerveDrive) -> commands2.Command:
-    odometry = drivetrain.create_odometry()
-    final = geometry.Pose2d(0.5, 0.5, geometry.Rotation2d.fromDegrees(drivetrain.gyro()))
-    return commands2.ParallelDeadlineGroup(
-        StandardMove(drivetrain, odometry.getPose, final),
-        commands2.RunCommand(lambda: drivetrain.update_odo(odometry))
-    )
+def odo_adapter(incorrect: geometry.Pose2d) -> geometry.Pose2d:
+    return incorrect.rotateBy(geometry.Rotation2d.fromDegrees(0))
 
-class StandardMove(commands2.Command):
-    def __init__(self, drivetrain: drive.SwerveDrive, current_supp: Callable[[], geometry.Pose2d],
-                final: geometry.Pose2d):
-        super().__init__()
-        self.addRequirements(drivetrain)
+class AbsoluteRotate(commands2.Command):
+    max_turn = 0.2
+    def __init__(self, drivetrain: drive.SwerveDrive, destination: float):
         self.drivetrain = drivetrain
-
-        self.current_supp = current_supp
-        self.dest = final
-        self.start = self.current_supp()
-        
-        self.translate_controller = controller.ProfiledPIDController(1.0, 0, 0,
+        self.addRequirements(self.drivetrain)
+        self.destination = destination
+        self.turn_controller = controller.ProfiledPIDController(0.01, 0, 0, 
             trajectory.TrapezoidProfile.Constraints(10000, 0.1))
-        
-    def initialize(self):
-        print("Starting Move")
     
-    def distance(self) -> float:
-        current = self.current_supp()
-        dy = self.dest.Y() - (current.Y() - self.start.Y())
-        dx = self.dest.X() - (current.X() - self.start.X())
-        return math.sqrt(dy**2 + dx**2)
-    def angleto(self) -> float: # Degrees
-        current = self.current_supp()
-        dy = self.dest.Y() - (current.Y() - self.start.Y())
-        dx = self.dest.X() - (current.X() - self.start.X())
-        return math.degrees(math.atan2(dy, dx))
+    def initialize(self):
+        self.turn_controller.reset(self.drivetrain.gyro())
+        self.turn_controller.enableContinuousInput(0, 360)
+        self.turn_controller.setTolerance(1)
+
+    def execute(self):
+        value = self.turn_controller.calculate(self.drivetrain.gyro(), self.destination)
+        print(f"({self.drivetrain.gyro()}, {self.destination})")
+        clamped = control.clamp_mag(self.max_turn, value)
+        print(clamped)
+        self.drivetrain.polar_drive(drive.Polar(0, 0), clamped)
+
+    def end(self, _interrupted: bool):
+        self.drivetrain.polar_drive(drive.Polar(0, 0), 0)
+
+    def isFinished(self) -> bool:
+        return self.turn_controller.atGoal()
+
+class RelativeMove(commands2.Command):
+    threshold_dist = 0.05
+    max_speed = 0.2
+    def __init__(self, drivetrain: drive.SwerveDrive, destination: geometry.Translation2d):
+        super().__init__()
+        self.drivetrain = drivetrain
+        self.addRequirements(self.drivetrain)
+        self.destination = destination
+        # TODO: Tweak
+        self.trans_controller = controller.ProfiledPIDController(0.5, 0.0, 0.0,
+            trajectory.TrapezoidProfile.Constraints(1000, 0.1))
+        self.trans_controller.setTolerance(self.threshold_dist)
+    
+    def initialize(self):
+        self.odometry = self.drivetrain.create_odometry()
+        self.trans_controller.reset(0)
     
     def execute(self):
-        value = self.translate_controller.calculate(self.distance())
-        value = control.clamp_mag(0.2, value)
-        translation = drive.Polar(
-            value, self.angleto()
+        self.drivetrain.update_odo(self.odometry)
+        desired_trans_correction = self.trans_controller.calculate(self.distance_to_target())
+        trans_power = control.clamp_mag(self.max_speed, desired_trans_correction)
+        trans = drive.Polar(
+            trans_power,
+            self.angle_to_target()
         )
-        self.drivetrain.polar_drive(translation, 0)
-        print("Whatever:")
-        print(self.current_supp(), self.dest, self.angleto())
+        self.drivetrain.polar_drive(trans, 0)
     
-    def end(self, interrupted: bool):
-        self.drivetrain.polar_drive(drive.Polar(0,self.drivetrain.gyro()), 0)
-        print("Ending Move")
+    def dydx(self) -> Tuple[float, float]:
+        pose = odo_adapter(self.odometry.getPose())
+        return (
+            pose.Y() - self.destination.Y(),
+            pose.X() - self.destination.X()
+        )
+    def angle_to_target(self) -> float:
+        dy, dx = self.dydx()
+        tmp = math.degrees(math.atan2(dy, dx))
+        while tmp < 360: tmp += 360
+        tmp = tmp % 360
+        return tmp
 
-    def isFinished(self):
-        return self.distance() < 0.05
+    def distance_to_target(self) -> float:
+        dy, dx = self.dydx()
+        return math.sqrt(dy**2 + dx**2)
 
+    def isFinished(self) -> bool:
+        return self.trans_controller.atGoal()
+    
+    def end(self, _interrupted: bool):
+        trans = drive.Polar(0.0, 0)
+        self.drivetrain.polar_drive(trans, 0)
 
 # April Tag Align
+# TODO: pass in controller parameters as suppliers for offsets - could be nice
 class AprilAlign(commands2.Command):
     def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive):
         super().__init__()

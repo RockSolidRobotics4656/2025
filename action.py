@@ -43,18 +43,19 @@ def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Comm
 def deploy(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.SequentialCommandGroup(
         wheels.deposite(),
-        receive(ele, wrist),
+        commands2.PrintCommand("I need to implement backing up first or we will hit the pipe!")
+        #receive(ele, wrist),
     )
 
 # CAGE CLIMB
 def upcage(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
     return commands2.ParallelCommandGroup(
-        ele.goto(0.35),
+        ele.goto(0.20),
         wrist.goto(180),
     )
 def downcage(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
     return commands2.SequentialCommandGroup(
-        ele.home().withTimeout(1.5),
-        wrist.home(),
-        ele.home(dft=-0.4)
+        ele.goto(0).withTimeout(1.25),
+        wrist.goto(90),
+        ele.home(dft=-0.45),
     )
