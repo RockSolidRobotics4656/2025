@@ -22,7 +22,7 @@ class Elevator(commands2.Subsystem):
         #self.controller = wpimath.controller.PIDController(5.0, 0, 0) # TODO: Tune
         self.controller = wpimath.controller.ProfiledPIDController(5.0, 0, 0,
             wpimath.trajectory.TrapezoidProfile.Constraints(1, 0.2))
-        self.controller.setTolerance(0.01)
+        self.controller.setTolerance(0.005)
     
     def update(self) -> commands2.Command:
         def up():
@@ -72,7 +72,7 @@ class Elevator(commands2.Subsystem):
                 self
             ).until(self.is_bottomed),
             commands2.InstantCommand(lambda: self.height.reset(), self),
-        )
+        ).withTimeout(5.0)
 
     def is_bottomed(self) -> bool:
         return self.switch.get()

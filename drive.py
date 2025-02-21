@@ -60,6 +60,7 @@ class SwerveDrive(commands2.Subsystem):
         self.cells[1].telemetry(ncoms.drtelem_tab, "Cell 2"),
         self.cells[2].telemetry(ncoms.drtelem_tab, "Cell 3"),
         self.cells[3].telemetry(ncoms.drtelem_tab, "Cell 4"),
+        ncoms.drtelem_tab.putNumber("Gyro Angle", self.gyro())
     
     def create_odometry(self):
         angle = wpimath.geometry.Rotation2d.fromDegrees(self.gyro())
@@ -81,17 +82,18 @@ class SwerveDrive(commands2.Subsystem):
             ))
     
     def polar_drive(self, trans: Polar, r: float, relative=False):
+        r *= -1/40
         desired_state = wpimath.kinematics.ChassisSpeeds.fromFieldRelativeSpeeds(
             math.cos(math.radians(trans.angle))*trans.magnitude,
             math.sin(math.radians(trans.angle))*trans.magnitude,
-            r * 1/40,
+            r,
             wpimath.geometry.Rotation2d.fromDegrees(self.gyro())
         )
         if relative:
             desired_state = wpimath.kinematics.ChassisSpeeds(
                 math.cos(math.radians(trans.angle))*trans.magnitude,
                 math.sin(math.radians(trans.angle))*trans.magnitude,
-                r * 1/40
+                r
                 )
         states = self.kinematics.toSwerveModuleStates(desired_state)
         for cell, state in zip(self.cells, states):

@@ -11,15 +11,13 @@ import drive
 import elevate
 import action
 import april
+import aprilalign
 import depo
 import ncoms
 import move
 import const
 import lock
 import funnel
-
-
-debug = False
 
 class Continuity:
     def __init__(self):
@@ -28,75 +26,107 @@ class Continuity:
         self.wheels = depo.DepositorWheels(const.janky, 15, 1)
         self.wrist = depo.DepositorWrist(const.janky, 16, 0, enc=(2, 3))
         self.elevator = elevate.Elevator(13, 14, 4)
-        self.vision = april.VisionSystem("front")
+        self.fvision = april.VisionSystem("front", True)
+        self.bvision = april.VisionSystem("rear", True)
         self.lock = lock.ClimbLock(6)
         self.funnel = funnel.Funnel(5)
 
-        self.configure_bindings()
+        self.smart_mode(self.xbox)
 
-    def configure_bindings(self):
-        ncoms.drtelem_tab.putString("Debug", "No")
+    def test_mode(self, controller: commands2.button.CommandXboxController):
+        def get_control():
+                angle = math.degrees(math.atan2(
+                    -controller.getRightY(), controller.getRightX()
+                )) 
+                mag = wpimath.applyDeadband(mathutil.distance(0, 0, controller.getRightX(), controller.getRightY()) * 0.3, 0.05)
+                return drive.Polar(mag, angle)
+        get_xbox_turner = lambda: wpimath.applyDeadband(controller.getLeftX(), 0.05)
+        self.drivetrain.setDefaultCommand(
+            self.drivetrain.controller_drive(get_control, get_xbox_turner),
+        )
+        controller.y().onTrue(move.RelativeMove(self.drivetrain,
+            wpimath.geometry.Translation2d(0.0, 0.0), 315))
+        controller.b().onTrue(move.RelativeMove(self.drivetrain,
+            wpimath.geometry.Translation2d(0.0, 0.5), 45))
+        controller.x().onTrue(move.RelativeMove(self.drivetrain,
+            wpimath.geometry.Translation2d(0.0, 0.5), None))
+        controller.a().whileTrue(aprilalign.AprilAlign(self.fvision, self.drivetrain, 90))
+    def dumb_mode(self, controller: commands2.button.CommandXboxController):
         if True: # Enable Drivetrain
             def get_control():
                     angle = math.degrees(math.atan2(
-                        -self.xbox.getRightY(), self.xbox.getRightX()
+                        -controller.getRightY(), controller.getRightX()
                     )) 
-                    mag = wpimath.applyDeadband(mathutil.distance(0, 0, self.xbox.getRightX(), self.xbox.getRightY()) * 0.3, 0.05)
+                    mag = wpimath.applyDeadband(mathutil.distance(0, 0, controller.getRightX(), controller.getRightY()) * 0.3, 0.05)
                     return drive.Polar(mag, angle)
-            get_xbox_turner = lambda: wpimath.applyDeadband(-self.xbox.getLeftX(), 0.05)
+            get_xbox_turner = lambda: wpimath.applyDeadband(controller.getLeftX(), 0.05)
             self.drivetrain.setDefaultCommand(
                 self.drivetrain.controller_drive(get_control, get_xbox_turner),
             )
-
-            # Major TODOS
-            self.xbox.b().onTrue(move.RelativeMove(self.drivetrain,
-                wpimath.geometry.Translation2d(0.5, 0.5)))
-            self.xbox.y().onTrue(move.AbsoluteRotate(self.drivetrain, 45))
-            self.xbox.a().onTrue(move.tmpapalign(self.vision, self.drivetrain))
-
-        if True and not debug: # Enable Elevator
-            self.elevator.setDefaultCommand(self.elevator.update())
-        if True and debug:
-            self.xbox.povUp().whileTrue(self.elevator.test(0.2))
-            self.xbox.povDown().whileTrue(self.elevator.test(-0.1))
-            self.xbox.povLeft().whileTrue(self.elevator.test(-0.45))
-
-        if True and not debug: # Enable Wrist
-            self.wrist.setDefaultCommand(self.wrist.update())
-        if True and debug:
-            self.xbox.y().whileTrue(self.wrist.test(0.2))
-            self.xbox.a().whileTrue(self.wrist.test(-0.2))
-        
-        if True: # Enable Wheels
-            self.xbox.rightTrigger().onTrue(self.wheels.pickup())
-        if True and debug:
-            self.xbox.leftTrigger().onTrue(self.wheels.deposite())
-        
-        if True and not debug: # Enable setpoints
-            self.xbox.povLeft().onTrue(action.goto_l1(self.elevator, self.wrist))
-            self.xbox.povUp().onTrue(action.goto_l4(self.elevator, self.wrist))
-            self.xbox.povRight().onTrue(action.goto_l3(self.elevator, self.wrist))
-            self.xbox.povDown().onTrue(action.goto_l2(self.elevator, self.wrist))
-
-            either = self.xbox.povLeft() or self.xbox.povUp() or self.xbox.povRight() or self.xbox.povDown()
-            either.onFalse(action.deploy(self.elevator, self.wrist, self.wheels))
-
-            self.xbox.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
-            self.xbox.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist))
-        
         if True:
-            self.xbox.leftBumper().onTrue(self.lock.lock())
-            self.xbox.rightBumper().onTrue(self.lock.unlock())
-        if False: # Enable Polling the Vision Findings
-            self.xbox.rightBumper().onTrue(
-                commands2.InstantCommand(self.vision)
+            controller.povUp().whileTrue(self.elevator.test(0.2))
+            controller.povDown().whileTrue(self.elevator.test(-0.1))
+            controller.povLeft().whileTrue(self.elevator.test(-0.45))
+        if True:
+            controller.y().whileTrue(self.wrist.test(0.35))
+            controller.a().whileTrue(self.wrist.test(-0.35))
+        if True:
+            controller.rightTrigger().onTrue(self.wheels.pickup())
+            controller.leftTrigger().onTrue(self.wheels.deposite())
+
+    def smart_mode(self, controller: commands2.button.CommandXboxController):
+        warning = lambda: commands2.StartEndCommand(
+            lambda: controller.setRumble(wpilib.XboxController.RumbleType.kBothRumble, 1.0),
+            lambda: controller.setRumble(wpilib.XboxController.RumbleType.kBothRumble, 0.0),
+        ).withTimeout(0.3)
+        if True: # Enable Drivetrain
+            def get_control():
+                    angle = math.degrees(math.atan2(
+                        -controller.getRightY(), controller.getRightX()
+                    )) 
+                    mag = wpimath.applyDeadband(mathutil.distance(0, 0, controller.getRightX(), controller.getRightY()) * 0.3, 0.05)
+                    return drive.Polar(mag, angle)
+            get_xbox_turner = lambda: wpimath.applyDeadband(controller.getLeftX(), 0.05)
+            self.drivetrain.setDefaultCommand(
+                self.drivetrain.controller_drive(get_control, get_xbox_turner),
             )
-        
+        if True: # Enable Elevator
+            self.elevator.setDefaultCommand(self.elevator.update())
+        if True: # Enable Wrist
+            self.wrist.setDefaultCommand(self.wrist.update())
+        if True: # Enable Pickup
+            off_supp = lambda: controller.getRightX()
+            controller.rightTrigger().whileTrue(aprilalign.AprilAlign(self.bvision, self.drivetrain, 270, off_supp))
+            controller.rightTrigger().onFalse(
+                    action.stash_coral(self.elevator, self.wrist, self.wheels).andThen(warning())
+                )
+        if True: # Enable L Setpoints
+            o = lambda: controller.getRightX() / 2
+            controller.povLeft().onTrue(action.goto_l1(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povUp().onTrue(action.goto_l4(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povRight().onTrue(action.goto_l3(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povDown().onTrue(action.goto_l2(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
+            # Enable L Deploy Sequence
+            """
+            dply = action.deploy(self.drivetrain, self.elevator, self.wrist)
+            controller.povLeft().onFalse(dply)
+            controller.povUp().onFalse(dply)
+            controller.povRight().onFalse(dply)
+            controller.povDown().onFalse(dply)
+            """
+            # Enable Cage
+            controller.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
+            controller.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist, self.lock))
+        if True: # TESTING SECTION
+            off_supp = lambda: controller.getRightX()
+            controller.leftBumper().onTrue(self.lock.async_lock())
+            controller.rightBumper().onTrue(self.lock.async_unlock())
+            controller.x().whileTrue(aprilalign.AprilAlign(self.fvision, self.drivetrain, 90, off_supp))
     
     def teleop_start(self) -> commands2.Command:
-        return commands2.SequentialCommandGroup(
-            self.elevator.home(),
-            action.receive(self.elevator, self.wrist)
+        return commands2.ParallelCommandGroup(
+            action.receive(self.elevator, self.wrist),
+            self.lock.unlock(),
             )
         
     def get_auto(self) -> commands2.Command:

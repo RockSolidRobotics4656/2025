@@ -75,7 +75,7 @@ class DepositorWrist(commands2.Subsystem):
                 lambda: self.move(-0.35), self
                 ).until(self.is_home),
             commands2.InstantCommand(lambda: self.encoder.reset(), self),
-        )
+        ).withTimeout(5.0)
 
     def periodic(self):
         val = self.switch.get()
@@ -109,8 +109,8 @@ class DepositorWheels(commands2.Subsystem):
     def is_queued(self) -> bool:
         return not self.switch.get()
     def pickup(self) -> commands2.Command:
-        return self.intake(1.0).until(self.is_queued).withTimeout(3.0)
+        return self.intake(1.0).until(self.is_queued).withTimeout(2.0)
     def deposite(self) -> commands2.Command:
-        return self.eject(1.0).withTimeout(3.0)
+        return self.eject(1.0).withTimeout(0.8)
     def periodic(self):
         ncoms.wheel_tab.putBoolean("Queued", self.is_queued())

@@ -9,5 +9,8 @@ class Funnel(commands2.Subsystem):
     def is_on_target(self) -> bool:
         return not self.proximity.get()
     
+    def trigger(self) -> commands2.button.Trigger:
+        return commands2.button.Trigger(self.is_on_target)
+
     def periodic(self):
         ncoms.funn_tab.putBoolean("Aligned", self.is_on_target())
