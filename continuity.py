@@ -5,6 +5,7 @@ import mathutil
 import math
 from wpimath import applyDeadband
 
+import aprilalign2
 import wpimath.geometry
 import wpimath.kinematics
 import drive
@@ -50,7 +51,10 @@ class Continuity:
             wpimath.geometry.Translation2d(0.0, 0.5), 45))
         controller.x().onTrue(move.RelativeMove(self.drivetrain,
             wpimath.geometry.Translation2d(0.0, 0.5), None))
-        controller.a().whileTrue(aprilalign.AprilAlign(self.fvision, self.drivetrain, 90))
+        controller.a().whileTrue(
+             aprilalign2.Align(self.fvision, self.drivetrain, 90)
+        )
+
     def dumb_mode(self, controller: commands2.button.CommandXboxController):
         if True: # Enable Drivetrain
             def get_control():
@@ -96,24 +100,17 @@ class Continuity:
             self.wrist.setDefaultCommand(self.wrist.update())
         if True: # Enable Pickup
             off_supp = lambda: controller.getRightX()
-            controller.rightTrigger().whileTrue(aprilalign.AprilAlign(self.bvision, self.drivetrain, 270, off_supp))
+            #controller.rightTrigger().whileTrue(aprilalign.AprilAlign(self.bvision, self.drivetrain, 270, off_supp))
+            controller.rightTrigger().whileTrue(action.forward(self.drivetrain, 270, 0.1))
             controller.rightTrigger().onFalse(
                     action.stash_coral(self.elevator, self.wrist, self.wheels).andThen(warning())
                 )
         if True: # Enable L Setpoints
             o = lambda: controller.getRightX() / 2
-            controller.povLeft().onTrue(action.goto_l1(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povUp().onTrue(action.goto_l4(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povRight().onTrue(action.goto_l3(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povDown().onTrue(action.goto_l2(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
-            # Enable L Deploy Sequence
-            """
-            dply = action.deploy(self.drivetrain, self.elevator, self.wrist)
-            controller.povLeft().onFalse(dply)
-            controller.povUp().onFalse(dply)
-            controller.povRight().onFalse(dply)
-            controller.povDown().onFalse(dply)
-            """
+            controller.povLeft().whileTrue(action.goto_l1(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povUp().whileTrue(action.goto_l4(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povRight().whileTrue(action.goto_l3(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povDown().whileTrue(action.goto_l2(self.fvision, o, self.funnel, self.wheels, self.drivetrain, self.elevator, self.wrist))
             # Enable Cage
             controller.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
             controller.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist, self.lock))
@@ -121,7 +118,6 @@ class Continuity:
             off_supp = lambda: controller.getRightX()
             controller.leftBumper().onTrue(self.lock.async_lock())
             controller.rightBumper().onTrue(self.lock.async_unlock())
-            controller.x().whileTrue(aprilalign.AprilAlign(self.fvision, self.drivetrain, 90, off_supp))
     
     def teleop_start(self) -> commands2.Command:
         return commands2.ParallelCommandGroup(

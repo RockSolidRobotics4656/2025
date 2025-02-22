@@ -24,12 +24,14 @@ def goto_l(v: april.VisionSystem, o: Callable[[], float], f: funnel.Funnel,
             commands2.WaitUntilCommand(f.is_on_target),
             wrist.goto(wangle),
             ele.goto(eheight),
-            aprilalign.AprilAlign(v, d, 90, o),
+            #aprilalign.AprilAlign(v, d, 90, o),
+            forward(d, 90, 0.1)
         )
     return commands2.SequentialCommandGroup(start, deploy(d, ele, wrist, wh))
-goto_l1 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l1_ext, 215)
-goto_l2 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l2_ext, 215)
-goto_l3 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l3_ext, 215)
+goto_l1 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l1_ext, 225)
+goto_l2 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l2_ext, 225)
+goto_l3 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l3_ext, 225)
+# TODO: This is different
 goto_l4 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l4_ext, 200)
 
 # ACTION SEQUENCE

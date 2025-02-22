@@ -1,4 +1,6 @@
 from typing import *
+
+import wpimath.filter
 import ncoms
 import commands2
 import control
@@ -23,6 +25,8 @@ class DepositorWrist(commands2.Subsystem):
         self.encoder.set_ticks_per_unit(-710 / 225)
         self.controller = wpimath.controller.PIDController(0.2, 0, 0)
         self.controller.setTolerance(1)
+
+        self.filt = wpimath.filter.Debouncer(0.1, wpimath.filter.Debouncer.DebounceType.kBoth)
 
     # Unsafe Operation / Unchecked
     def _move_raw(self, speed: float) -> None:
@@ -67,7 +71,7 @@ class DepositorWrist(commands2.Subsystem):
         )
 
     def is_home(self) -> bool:
-        return self.switch.get()
+        return self.filt.calculate(self.switch.get())
 
     def home(self) -> commands2.Command:
         return commands2.SequentialCommandGroup(

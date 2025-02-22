@@ -11,6 +11,6 @@ if janky:
 if not janky:
     enc_offsets = (180, 170, -85, 160)
     l1_ext = 0
-    l2_ext = 0.05
-    l3_ext = 0.34
+    l2_ext = 0.1
+    l3_ext = 0.37
     l4_ext = 0.8
