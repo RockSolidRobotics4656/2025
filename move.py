@@ -17,23 +17,23 @@ def normangle(x: float) -> float:
     return x % 360
 
 class RelativeMove(commands2.Command):
-    threshold_dist = 0.05
+    threshold_dist = 0.03
     max_speed = 0.3
-    max_turn = 0.3
-    threshold_angle = 1
+    max_turn = 0.2
+    threshold_angle = 3
     def __init__(self, drivetrain: drive.SwerveDrive, destination: geometry.Translation2d, angle: Optional[float]):
         super().__init__()
         self.drivetrain = drivetrain
         self.addRequirements(self.drivetrain)
         self.destination = destination
         # TODO: Tweak
-        self.trans_controller = controller.ProfiledPIDController(0.75, 0.0, 0.0,
+        self.trans_controller = controller.ProfiledPIDController(1.5, 0.0, 0.0,
             trajectory.TrapezoidProfile.Constraints(1000, 0.1))
         self.trans_controller.setTolerance(self.threshold_dist)
 
         self.turn_controller = None
         if angle:
-            self.turn_controller = controller.PIDController(0.01, 0, 0)
+            self.turn_controller = controller.PIDController(0.015, 0, 0)
             self.turn_controller.enableContinuousInput(0, 360)
             self.turn_controller.setTolerance(self.threshold_angle)
             self.turn_controller.setSetpoint(angle)
@@ -54,7 +54,6 @@ class RelativeMove(commands2.Command):
         if self.turn_controller is not None:
             desired_rotate_correction = -self.turn_controller.calculate(self.drivetrain.gyro())
             rotate_correction = control.clamp_mag(self.max_turn, desired_rotate_correction)
-            if not self.trans_controller.atGoal(): rotate_correction = 0
         self.drivetrain.polar_drive(trans, rotate_correction)
     
     def dydx(self) -> Tuple[float, float]:

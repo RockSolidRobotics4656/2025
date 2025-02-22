@@ -1,6 +1,7 @@
 import wpilib
 import wpimath
 import commands2
+import wpimath.filter
 import mathutil
 import math
 from wpimath import applyDeadband
@@ -18,8 +19,12 @@ import const
 import lock
 import funnel
 
+def dbnc(x: commands2.button.Trigger) -> commands2.button.Trigger:
+    return x.debounce(0.1, wpimath.filter.Debouncer.DebounceType.kBoth)
+
 class Continuity:
     def __init__(self):
+        # Subsystems
         self.xbox = commands2.button.CommandXboxController(0)
         self.drivetrain = drive.SwerveDrive(enc_off=const.enc_offsets)
         self.wheels = depo.DepositorWheels(const.janky, 15, 1)
@@ -30,18 +35,21 @@ class Continuity:
         self.lock = lock.ClimbLock(6)
         self.funnel = funnel.Funnel(5)
 
+        # Commands
+
+        # Modes
         self.smart_mode(self.xbox)
 
     def xbox_warning(self):
         return commands2.StartEndCommand(
             lambda: self.xbox.setRumble(wpilib.XboxController.RumbleType.kBothRumble, 1.0),
             lambda: self.xbox.setRumble(wpilib.XboxController.RumbleType.kBothRumble, 0.0),
-        ).withTimeout(0.3)
+        ).withTimeout(0.7)
 
     def get_xbox_turner(self) -> float:
         return wpimath.applyDeadband(self.xbox.getLeftX(), 0.05)
     def get_align(self) -> float:
-        return wpimath.applyDeadband(self.xbox.getRightX(), 0.05)
+        return self.xbox.getRightX()
     def get_control(self) -> drive.Polar:
             angle = math.degrees(math.atan2(
                 -self.xbox.getRightY(), self.xbox.getRightX()
@@ -54,12 +62,13 @@ class Continuity:
             self.drivetrain.controller_drive(self.get_control, self.get_xbox_turner),
         )
         controller.y().onTrue(move.RelativeMove(self.drivetrain,
-            wpimath.geometry.Translation2d(0.0, 0.0), 315))
-        controller.b().onTrue(move.RelativeMove(self.drivetrain,
-            wpimath.geometry.Translation2d(0.0, 0.5), 45))
-        controller.x().onTrue(move.RelativeMove(self.drivetrain,
             wpimath.geometry.Translation2d(0.0, 0.5), None))
-        controller.a().whileTrue(
+        controller.b().onTrue(move.RelativeMove(self.drivetrain,
+            wpimath.geometry.Translation2d(0.5, 0.0), 315))
+        controller.x().onTrue(move.RelativeMove(self.drivetrain,
+            wpimath.geometry.Translation2d(-0.5, 0.0), 45))
+
+        controller.leftBumper().whileTrue(
              aprilalign2.Align(self.fvision, self.drivetrain, 90, self.get_align)
         )
 
@@ -97,13 +106,17 @@ class Continuity:
                     action.stash_coral(self.elevator, self.wrist, self.wheels)
                 )
         if True: # Enable L Setpoints
+            controller.povUp().onTrue(action.goto_l4(self.fvision, self.get_align, lambda: not controller.povUp().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
             controller.povLeft().onTrue(action.goto_l1(self.fvision, self.get_align, lambda: not controller.povLeft().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
             controller.povRight().onTrue(action.goto_l3(self.fvision, self.get_align, lambda: not controller.povRight().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
             controller.povDown().onTrue(action.goto_l2(self.fvision, self.get_align, lambda: not controller.povDown().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
-        if True:
-            # Enable Cage
+        if True: # Enable Cage
             controller.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
             controller.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist, self.lock))
+        if True: # Algae Setpoint
+            controller.a().onTrue(action.low_algae(self.elevator, self.wrist, self.wheels))
+            controller.b().onTrue(action.high_algae(self.elevator, self.wrist, self.wheels))
+            controller.x().onFalse(action.receive(self.elevator, self.wrist))
     
 
     def get_tele(self) -> commands2.Command:

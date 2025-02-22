@@ -24,7 +24,6 @@ class Align(commands2.Command):
         self.id = None
         self.fwddir = fwddir
         self.osupp = osupp
-        self.filter = filter.SlewRateLimiter(0.1, -0.1)
     
     def initialize(self):
         self.odometry = self.drivetrain.create_odometry()
@@ -41,24 +40,25 @@ class Align(commands2.Command):
 
     def execute(self):
         self.drivetrain.update_odo(self.odometry)
+        """
         if detected := self.vision():
             id = detected[0]
             if id == self.tagid:
                 self.odometry.resetPose(detected[1])
         else:
             self.odometry.resetTranslation(geometry.Translation2d(0, -1))
+        """
         pose = self.odometry.getPose()
-        actualx = self.filter.calculate(pose.X())
         desired_angle = angle_lookup_table[self.tagid]
         current_angle = self.drivetrain.gyro()
         yaw_correction = -self.turn_controller.calculate(current_angle, desired_angle)
         yaw_clamped = control.clamp_mag(0.2, yaw_correction)
 
         fwd = drive.Polar(
-            0.07, self.fwddir
+            0.05, self.fwddir
         )
-        ncoms.dbg_tab.putNumber("Relx", actualx)
-        val = self.trans_controller.calculate(actualx, self.osupp())
+        ncoms.dbg_tab.putNumber("Relx", pose.X())
+        val = -self.trans_controller.calculate(pose.X(), -self.osupp())
         lat = drive.Polar(
             control.clamp_mag(0.2, val), 0
         )
