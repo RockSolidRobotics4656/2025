@@ -14,3 +14,6 @@ if not janky:
     l2_ext = 0.1
     l3_ext = 0.37
     l4_ext = 0.8
+
+    l2_ext = 0.06
+    l3_ext = 0.35

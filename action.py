@@ -5,7 +5,7 @@ import elevate
 import lock
 import drive
 import const
-import aprilalign
+import aprilalign2
 import april
 import funnel
 
@@ -16,23 +16,23 @@ def high_algae(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.C
     pass
 
 # POSITIONS
-def goto_l(v: april.VisionSystem, o: Callable[[], float], f: funnel.Funnel,
-        wh: depo.DepositorWheels,
+# TODO: Can remove funnel form it
+def goto_l(v: april.VisionSystem, o: Callable[[], float], 
+        i: Callable[[], bool], wh: depo.DepositorWheels,
         d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist,
         eheight: float, wangle: float) -> commands2.Command:
     start = commands2.ParallelDeadlineGroup(
-            commands2.WaitUntilCommand(f.is_on_target),
+            commands2.WaitUntilCommand(i),
             wrist.goto(wangle),
             ele.goto(eheight),
-            #aprilalign.AprilAlign(v, d, 90, o),
-            forward(d, 90, 0.1)
+            aprilalign2.Align(v, d, 90, o)
         )
     return commands2.SequentialCommandGroup(start, deploy(d, ele, wrist, wh))
-goto_l1 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l1_ext, 225)
-goto_l2 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l2_ext, 225)
-goto_l3 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l3_ext, 225)
+goto_l1 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l1_ext, 230)
+goto_l2 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l2_ext, 230)
+goto_l3 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l3_ext, 230)
 # TODO: This is different
-goto_l4 = lambda v, o, f, wh, d, e, w: goto_l(v, o, f, wh, d, e, w, const.l4_ext, 200)
+#goto_l4 = lambda v, o, i, wh, d, e, w: goto_l(v, o, f, i, wh, d, e, w, const.l4_ext, 200)
 
 # ACTION SEQUENCE
 def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
