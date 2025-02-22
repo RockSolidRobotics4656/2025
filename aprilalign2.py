@@ -16,14 +16,14 @@ angle_lookup_table = {
 }
 
 class Align(commands2.Command):
-    def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, osupp: Callable[[], float]):
+    def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, ps: Callable[[], drive.Polar]):
         self.drivetrain = drivetrain
         self.vision = vision
         self.addRequirements(self.drivetrain)
         self.addRequirements(self.vision)
         self.id = None
         self.fwddir = fwddir
-        self.osupp = osupp
+        self.ps = ps
     
     def initialize(self):
         self.odometry = self.drivetrain.create_odometry()
@@ -40,29 +40,15 @@ class Align(commands2.Command):
 
     def execute(self):
         self.drivetrain.update_odo(self.odometry)
-        """
-        if detected := self.vision():
-            id = detected[0]
-            if id == self.tagid:
-                self.odometry.resetPose(detected[1])
-        else:
-            self.odometry.resetTranslation(geometry.Translation2d(0, -1))
-        """
-        pose = self.odometry.getPose()
         desired_angle = angle_lookup_table[self.tagid]
         current_angle = self.drivetrain.gyro()
         yaw_correction = -self.turn_controller.calculate(current_angle, desired_angle)
         yaw_clamped = control.clamp_mag(0.2, yaw_correction)
-
+        cont = self.ps()
         fwd = drive.Polar(
-            0.05, self.fwddir
+            0.15, self.fwddir
         )
-        ncoms.dbg_tab.putNumber("Relx", pose.X())
-        val = -self.trans_controller.calculate(pose.X(), -self.osupp())
-        lat = drive.Polar(
-            control.clamp_mag(0.2, val), 0
-        )
-        trans = drive.mix_polar(lat, fwd)
+        trans = drive.mix_polar(fwd, cont)
         self.drivetrain.polar_drive(trans, yaw_clamped, True)
     
     def end(self, _interrupted: bool):

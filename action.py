@@ -25,7 +25,7 @@ def high_algae(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.D
 
 # POSITIONS
 # TODO: Can remove funnel form it
-def goto_l(v: april.VisionSystem, o: Callable[[], float], 
+def goto_l(v: april.VisionSystem, ps: Callable[[], drive.Polar], 
         i: Callable[[], bool], wh: depo.DepositorWheels,
         d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist,
         eheight: float, wangle: float) -> commands2.Command:
@@ -33,13 +33,13 @@ def goto_l(v: april.VisionSystem, o: Callable[[], float],
             commands2.WaitUntilCommand(i),
             commands2.RepeatCommand(wrist.goto(wangle)),
             commands2.RepeatCommand(ele.goto(eheight)),
-            aprilalign2.Align(v, d, 90, o)
+            aprilalign2.Align(v, d, 90, ps)
         )
     return commands2.SequentialCommandGroup(start, deploy(d, ele, wrist, wh))
 goto_l1 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l1_ext, 230)
 goto_l2 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l2_ext, 230)
 goto_l3 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l3_ext, 230)
-goto_l4 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l4_ext, 200)
+goto_l4 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l4_ext, 230)
 
 # ACTION SEQUENCE
 def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
@@ -62,8 +62,10 @@ def stash_coral(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.
 def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.SequentialCommandGroup(
         wheels.deposite(),
-        forward(d, 270, 0.1).withTimeout(0.8),
-        receive(ele, wrist),
+        commands2.ParallelDeadlineGroup(
+            forward(d, 270, 0.1).withTimeout(0.8),
+            receive(ele, wrist),
+        )
     )
 
 # CAGE CLIMB

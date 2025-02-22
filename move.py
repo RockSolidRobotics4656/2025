@@ -26,20 +26,20 @@ class RelativeMove(commands2.Command):
         self.drivetrain = drivetrain
         self.addRequirements(self.drivetrain)
         self.destination = destination
-        # TODO: Tweak
+        self.angle
+    
+    def initialize(self):
+        self.odometry = self.drivetrain.create_odometry()
         self.trans_controller = controller.ProfiledPIDController(1.5, 0.0, 0.0,
             trajectory.TrapezoidProfile.Constraints(1000, 0.1))
         self.trans_controller.setTolerance(self.threshold_dist)
 
         self.turn_controller = None
-        if angle:
+        if self.angle:
             self.turn_controller = controller.PIDController(0.015, 0, 0)
             self.turn_controller.enableContinuousInput(0, 360)
             self.turn_controller.setTolerance(self.threshold_angle)
-            self.turn_controller.setSetpoint(angle)
-    
-    def initialize(self):
-        self.odometry = self.drivetrain.create_odometry()
+            self.turn_controller.setSetpoint(self.angle)
     
     def execute(self):
         self.drivetrain.update_odo(self.odometry)

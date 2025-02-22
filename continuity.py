@@ -38,7 +38,7 @@ class Continuity:
         # Commands
 
         # Modes
-        self.smart_mode(self.xbox)
+        self.test_mode(self.xbox)
 
     def xbox_warning(self):
         return commands2.StartEndCommand(
@@ -69,7 +69,7 @@ class Continuity:
             wpimath.geometry.Translation2d(-0.5, 0.0), 45))
 
         controller.leftBumper().whileTrue(
-             aprilalign2.Align(self.fvision, self.drivetrain, 90, self.get_align)
+             aprilalign2.Align(self.fvision, self.drivetrain, 90, self.get_control)
         )
 
     def dumb_mode(self, controller: commands2.button.CommandXboxController):
@@ -106,10 +106,10 @@ class Continuity:
                     action.stash_coral(self.elevator, self.wrist, self.wheels)
                 )
         if True: # Enable L Setpoints
-            controller.povUp().onTrue(action.goto_l4(self.fvision, self.get_align, lambda: not controller.povUp().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povLeft().onTrue(action.goto_l1(self.fvision, self.get_align, lambda: not controller.povLeft().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povRight().onTrue(action.goto_l3(self.fvision, self.get_align, lambda: not controller.povRight().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povDown().onTrue(action.goto_l2(self.fvision, self.get_align, lambda: not controller.povDown().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povUp().onTrue(action.goto_l4(self.fvision, self.get_control, lambda: not controller.povUp().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povLeft().onTrue(action.goto_l1(self.fvision, self.get_control, lambda: not controller.povLeft().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povRight().onTrue(action.goto_l3(self.fvision, self.get_control, lambda: not controller.povRight().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
+            controller.povDown().onTrue(action.goto_l2(self.fvision, self.get_control, lambda: not controller.povDown().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
         if True: # Enable Cage
             controller.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
             controller.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist, self.lock))
