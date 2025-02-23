@@ -44,8 +44,6 @@ class Continuity:
 
     def get_xbox_turner(self) -> float:
         return wpimath.applyDeadband(self.xbox.getLeftX(), 0.05)
-    def get_align(self) -> float:
-        return self.xbox.getRightX()
     def get_control(self) -> drive.Polar:
             angle = math.degrees(math.atan2(
                 -self.xbox.getRightY(), self.xbox.getRightX()
@@ -65,6 +63,17 @@ class Continuity:
             wpimath.geometry.Translation2d(-1.0, 0.0), 45))
         controller.a().whileTrue(move.Move(self.drivetrain,
             wpimath.geometry.Translation2d(0.0, 0.0), 180))
+        """
+        controller.leftBumper().whileTrue(
+            aprilalign2.reef_left(self.fvision, self.drivetrain, self.get_control)
+        )
+        controller.rightBumper().whileTrue(
+            aprilalign2.reef_right(self.fvision, self.drivetrain, self.get_control)
+        )
+        """
+        controller.leftBumper().whileTrue(
+            aprilalign2.reef_align(self.fvision, self.drivetrain, self.get_control)
+        )
 
     def dumb_mode(self, controller: commands2.button.CommandXboxController):
         if True: # Enable Drivetrain

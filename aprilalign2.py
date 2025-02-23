@@ -14,11 +14,21 @@ angle_lookup_table = {
     18: 0,
     19: 300,
 
+    12: 240, #TMP: testing please remove to fix later
+    1: 60, #TMP: testing please remove to fix later
 }
 
+center_offset = 7 / 39
+lr_offset = 10 / 39 / 2
+
+def reef_left(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
+    return Align(vision, drivetrain, 90, ps, center_offset-lr_offset, l)
+def reef_right(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
+    return Align(vision, drivetrain, 90, ps, center_offset+lr_offset, l)
+
 class Align(commands2.Command):
-    max_blackhole_effect = 0.1
-    def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, ps: Callable[[], drive.Polar]):
+    max_blackhole_effect = 0.3
+    def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, ps: Callable[[], drive.Polar], targetlat: float, latpid: float = 0.2):
         self.drivetrain = drivetrain
         self.vision = vision
         self.addRequirements(self.drivetrain)
@@ -26,7 +36,8 @@ class Align(commands2.Command):
         self.id = None
         self.fwddir = fwddir
         self.ps = ps
-        self.lat_pid = controller.PIDController(1.0, 0, 0)
+        self.targetlat = targetlat
+        self.latpid = latpid
     
     def initialize(self):
         self.odometry = self.drivetrain.create_odometry()
@@ -34,6 +45,7 @@ class Align(commands2.Command):
             self.tagid = ready[0]
             self.odometry.resetPose(ready[1])
         else:
+            # TODO: Turn into forward command
             print("Cannot begin April Alignment because no april tag is detected!")
             self.cancel()
         self.turn_controller = controller.PIDController(0.01, 0, 0)
@@ -41,17 +53,36 @@ class Align(commands2.Command):
         self.turn_controller.setTolerance(1)
         self.trans_controller = controller.PIDController(1.0, 0, 0)
 
+        self.lat_pid = controller.PIDController(self.latpid, 0, 0)
+        self.lat_filter = filter.MedianFilter(10)
+        self.alignx = 0
+
     def execute(self):
         self.drivetrain.update_odo(self.odometry)
+
+        # Angular
         desired_angle = angle_lookup_table[self.tagid]
         current_angle = self.drivetrain.gyro()
         yaw_correction = -self.turn_controller.calculate(current_angle, desired_angle)
         yaw_clamped = control.clamp_mag(0.2, yaw_correction)
-        cont = self.ps()
+
+        # Translate
         fwd = drive.Polar(
             0.15, self.drivetrain.gyro() + self.fwddir
         )
-        trans = drive.mix_polar(fwd, cont)
+        cont = self.ps()
+
+        # Blackhole
+        if detect := self.vision():
+            pose = detect[1]
+            self.alignx = self.lat_filter.calculate(pose.X())
+        xcor = control.clamp_mag(self.max_blackhole_effect, self.lat_pid.calculate(self.alignx, self.targetlat))
+        blackhole = drive.Polar(
+            xcor, self.drivetrain.gyro()
+        )
+
+        # Final Mix
+        trans = drive.mix_polar(drive.mix_polar(fwd, cont), blackhole)
         self.drivetrain.polar_drive(trans, yaw_clamped, False)
     
     def end(self, _interrupted: bool):
