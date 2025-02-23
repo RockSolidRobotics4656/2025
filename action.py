@@ -63,7 +63,7 @@ def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWri
     return commands2.SequentialCommandGroup(
         wheels.deposite(),
         commands2.ParallelDeadlineGroup(
-            forward(d, 270, 0.1).withTimeout(0.8),
+            forward(d, 270, 0.2).withTimeout(0.8),
             receive(ele, wrist),
         )
     )

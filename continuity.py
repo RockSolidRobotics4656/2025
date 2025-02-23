@@ -35,8 +35,6 @@ class Continuity:
         self.lock = lock.ClimbLock(6)
         self.funnel = funnel.Funnel(5)
 
-        # Commands
-
         # Modes
         self.test_mode(self.xbox)
 
@@ -61,16 +59,14 @@ class Continuity:
         self.drivetrain.setDefaultCommand(
             self.drivetrain.controller_drive(self.get_control, self.get_xbox_turner),
         )
-        controller.y().onTrue(move.RelativeMove(self.drivetrain,
-            wpimath.geometry.Translation2d(0.0, 0.5), None))
-        controller.b().onTrue(move.RelativeMove(self.drivetrain,
-            wpimath.geometry.Translation2d(0.5, 0.0), 315))
-        controller.x().onTrue(move.RelativeMove(self.drivetrain,
-            wpimath.geometry.Translation2d(-0.5, 0.0), 45))
-
-        controller.leftBumper().whileTrue(
-             aprilalign2.Align(self.fvision, self.drivetrain, 90, self.get_control)
-        )
+        controller.y().whileTrue(move.Move(self.drivetrain,
+            wpimath.geometry.Translation2d(0.0, 1.0), None))
+        controller.b().whileTrue(move.Move(self.drivetrain,
+            wpimath.geometry.Translation2d(1.0, 0.0), 315))
+        controller.x().whileTrue(move.Move(self.drivetrain,
+            wpimath.geometry.Translation2d(-1.0, 0.0), 45))
+        controller.a().whileTrue(move.Move(self.drivetrain,
+            wpimath.geometry.Translation2d(0.0, 0.0), 180))
 
     def dumb_mode(self, controller: commands2.button.CommandXboxController):
         if True: # Enable Drivetrain

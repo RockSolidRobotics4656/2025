@@ -13,6 +13,7 @@ angle_lookup_table = {
     17: 60,
     18: 0,
     19: 300,
+
 }
 
 class Align(commands2.Command):
@@ -46,10 +47,10 @@ class Align(commands2.Command):
         yaw_clamped = control.clamp_mag(0.2, yaw_correction)
         cont = self.ps()
         fwd = drive.Polar(
-            0.15, self.fwddir
+            0.15, self.drivetrain.gyro() + self.fwddir
         )
         trans = drive.mix_polar(fwd, cont)
-        self.drivetrain.polar_drive(trans, yaw_clamped, True)
+        self.drivetrain.polar_drive(trans, yaw_clamped, False)
     
     def end(self, _interrupted: bool):
         self.drivetrain.polar_drive(drive.Polar(0, 0), 0, True)

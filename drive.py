@@ -53,6 +53,7 @@ class SwerveDrive(commands2.Subsystem):
         self.gyro.set_rotational(True)
         self.gyro.set_ticks_per_unit(1.0)
         self.gyro.reset()
+        self.odometry = self.create_odometry()
     
 
     def periodic(self):
@@ -61,6 +62,12 @@ class SwerveDrive(commands2.Subsystem):
         self.cells[2].telemetry(ncoms.drtelem_tab, "Cell 3"),
         self.cells[3].telemetry(ncoms.drtelem_tab, "Cell 4"),
         ncoms.drtelem_tab.putNumber("Gyro Angle", self.gyro())
+
+        self.update_odo(self.odometry)
+        pose = self.odometry.getPose()
+        ncoms.drtelem_tab.putNumber("x", pose.X())
+        ncoms.drtelem_tab.putNumber("y", pose.Y())
+        ncoms.drtelem_tab.putNumber("a", pose.rotation().degrees())
     
     def create_odometry(self):
         angle = wpimath.geometry.Rotation2d.fromDegrees(self.gyro())

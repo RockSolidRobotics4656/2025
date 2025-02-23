@@ -80,8 +80,7 @@ class DepositorWrist(commands2.Subsystem):
         ).withTimeout(5.0)
 
     def periodic(self):
-        val = self.switch.get()
-        ncoms.wrist_tab.putBoolean("Wrist Limit", val)
+        ncoms.wrist_tab.putBoolean("Homed", self.is_home())
         ncoms.wrist_tab.putNumber("Wrist Value", self.encoder())
 
 class DepositorWheels(commands2.Subsystem):

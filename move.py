@@ -1,81 +1,56 @@
 from typing import *
-import drive
-import commands2
-from wpimath import geometry, controller, trajectory, kinematics
 import math
-import ncoms
+import commands2
+from wpimath import geometry, filter, controller, trajectory
+import drive
 import control
-import april
-import wpimath
-import wpilib
-import dataclasses
 
-def odo_adapter(incorrect: geometry.Pose2d) -> geometry.Pose2d:
-    return incorrect.rotateBy(geometry.Rotation2d.fromDegrees(0))
 def normangle(x: float) -> float:
     while x <= 0: x += 360
     return x % 360
 
-class RelativeMove(commands2.Command):
-    threshold_dist = 0.03
-    max_speed = 0.3
+class Move(commands2.Command):
+    max_linear = 0.4
+    tol_linear = 0.05
     max_turn = 0.2
-    threshold_angle = 3
-    def __init__(self, drivetrain: drive.SwerveDrive, destination: geometry.Translation2d, angle: Optional[float]):
+    tol_turn = 1
+    def __init__(self, d: drive.SwerveDrive, position: geometry.Translation2d, angle: Optional[float]):
         super().__init__()
-        self.drivetrain = drivetrain
-        self.addRequirements(self.drivetrain)
-        self.destination = destination
-        self.angle
+        self.drive = d
+        self.addRequirements(self.drive)
+        self.destination = position
+        self.fangle = angle
     
     def initialize(self):
-        self.odometry = self.drivetrain.create_odometry()
-        self.trans_controller = controller.ProfiledPIDController(1.5, 0.0, 0.0,
+        self.linear_pid = controller.ProfiledPIDController(1.0, 0, 0,
             trajectory.TrapezoidProfile.Constraints(1000, 0.1))
-        self.trans_controller.setTolerance(self.threshold_dist)
-
-        self.turn_controller = None
-        if self.angle:
-            self.turn_controller = controller.PIDController(0.015, 0, 0)
-            self.turn_controller.enableContinuousInput(0, 360)
-            self.turn_controller.setTolerance(self.threshold_angle)
-            self.turn_controller.setSetpoint(self.angle)
+        self.linear_pid.setTolerance(self.tol_linear)
+        self.angular_pid = controller.PIDController(0.04, 0, 0)
+        self.angular_pid.enableContinuousInput(0, 360)
+        self.angular_pid.setTolerance(self.tol_turn)
     
     def execute(self):
-        self.drivetrain.update_odo(self.odometry)
-        desired_trans_correction = self.trans_controller.calculate(self.distance_to_target())
-        trans_power = control.clamp_mag(self.max_speed, desired_trans_correction)
-        trans = drive.Polar(
-            trans_power,
-            self.angle_to_target()
-        )
-        # Turning
-        rotate_correction = 0
-        if self.turn_controller is not None:
-            desired_rotate_correction = -self.turn_controller.calculate(self.drivetrain.gyro())
-            rotate_correction = control.clamp_mag(self.max_turn, desired_rotate_correction)
-        self.drivetrain.polar_drive(trans, rotate_correction)
-    
-    def dydx(self) -> Tuple[float, float]:
-        pose = odo_adapter(self.odometry.getPose())
-        return (
-            pose.Y() - self.destination.Y(),
-            pose.X() - self.destination.X()
-        )
-    def angle_to_target(self) -> float:
-        dy, dx = self.dydx()
-        return normangle(math.degrees(math.atan2(dy, dx)))
+        pose = self.drive.odometry.getPose()
 
-    def distance_to_target(self) -> float:
-        dy, dx = self.dydx()
-        return math.sqrt(dy**2 + dx**2)
+        # Linear 
+        dx = self.destination.X() - pose.X()
+        dy = self.destination.Y() - pose.Y()
+        linear_dst = math.sqrt(dx**2 + dy**2)
+        linear_spd = control.clamp_mag(self.max_linear, -self.linear_pid.calculate(linear_dst, 0))
+        trans_angle = normangle(math.degrees(math.atan2(dy, dx)))
+        trans = drive.Polar(linear_spd, trans_angle)
 
-    def isFinished(self) -> bool:
-        turn_correct = True
-        if self.turn_controller is not None:
-            turn_correct = self.turn_controller.atSetpoint()
-        return self.trans_controller.atGoal() and turn_correct
+        # Angular
+        angular_spd = 0
+        if self.fangle:
+            angular_spd = control.clamp_mag(self.max_turn, -self.angular_pid.calculate(
+                pose.rotation().degrees(), self.fangle))
+
+        self.drive.polar_drive(trans, angular_spd, False)
     
-    def end(self, _interrupted: bool):
-        trans = drive.Polar(0.0, 0)
-        self.drivetrain.polar_drive(trans, 0)
+    def isFinished(self):
+        return self.linear_pid.atGoal() and (self.angular_pid.atSetpoint() or not self.fangle)
+    
+    def end(self, interrupted):
+        print("Completed!")
+
