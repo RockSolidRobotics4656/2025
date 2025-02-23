@@ -4,7 +4,7 @@ import control
 import ncoms
 import drive
 import april
-from wpimath import controller, geometry, filter
+from wpimath import controller, geometry, filter, trajectory
 
 angle_lookup_table = {
     6: 300,
@@ -17,6 +17,7 @@ angle_lookup_table = {
 }
 
 class Align(commands2.Command):
+    max_blackhole_effect = 0.1
     def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, ps: Callable[[], drive.Polar]):
         self.drivetrain = drivetrain
         self.vision = vision
@@ -25,6 +26,7 @@ class Align(commands2.Command):
         self.id = None
         self.fwddir = fwddir
         self.ps = ps
+        self.lat_pid = controller.PIDController(1.0, 0, 0)
     
     def initialize(self):
         self.odometry = self.drivetrain.create_odometry()

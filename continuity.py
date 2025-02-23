@@ -7,8 +7,6 @@ import math
 from wpimath import applyDeadband
 
 import aprilalign2
-import wpimath.geometry
-import wpimath.kinematics
 import drive
 import elevate
 import action
