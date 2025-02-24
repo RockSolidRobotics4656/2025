@@ -18,7 +18,7 @@ angle_lookup_table = {
     1: 60, #TMP: testing please remove to fix later
 }
 
-center_offset = 7 / 39
+center_offset = 19 / 39
 lr_offset = 10 / 39 / 2
 
 def reef_left(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
@@ -38,16 +38,15 @@ class Align(commands2.Command):
         self.ps = ps
         self.targetlat = targetlat
         self.latpid = latpid
-    
+
     def initialize(self):
         self.odometry = self.drivetrain.create_odometry()
+        self.tagid = None
         if ready := self.vision():
             self.tagid = ready[0]
             self.odometry.resetPose(ready[1])
         else:
-            # TODO: Turn into forward command
             print("Cannot begin April Alignment because no april tag is detected!")
-            self.cancel()
         self.turn_controller = controller.PIDController(0.01, 0, 0)
         self.turn_controller.enableContinuousInput(0, 360)
         self.turn_controller.setTolerance(1)
@@ -58,6 +57,8 @@ class Align(commands2.Command):
         self.alignx = 0
 
     def execute(self):
+        # Spinout condition
+        if self.tagid is None: return
         self.drivetrain.update_odo(self.odometry)
 
         # Angular
@@ -68,7 +69,7 @@ class Align(commands2.Command):
 
         # Translate
         fwd = drive.Polar(
-            0.15, self.drivetrain.gyro() + self.fwddir
+            0.05, self.drivetrain.gyro() + self.fwddir
         )
         cont = self.ps()
 

@@ -20,7 +20,7 @@ class Elevator(commands2.Subsystem):
         self.height.set_ticks_per_unit(-110.0)
         self.switch = wpilib.DigitalInput(swi_slot)
         #self.controller = wpimath.controller.PIDController(5.0, 0, 0) # TODO: Tune
-        self.controller = wpimath.controller.ProfiledPIDController(5.0, 0, 0,
+        self.controller = wpimath.controller.ProfiledPIDController(5.5, 0, 0,
             wpimath.trajectory.TrapezoidProfile.Constraints(1, 0.2))
         self.controller.setTolerance(0.005)
     

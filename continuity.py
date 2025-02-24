@@ -34,7 +34,7 @@ class Continuity:
         self.funnel = funnel.Funnel(5)
 
         # Modes
-        self.test_mode(self.xbox)
+        self.smart_mode(self.xbox)
 
     def xbox_warning(self):
         return commands2.StartEndCommand(
@@ -63,16 +63,11 @@ class Continuity:
             wpimath.geometry.Translation2d(-1.0, 0.0), 45))
         controller.a().whileTrue(move.Move(self.drivetrain,
             wpimath.geometry.Translation2d(0.0, 0.0), 180))
-        """
         controller.leftBumper().whileTrue(
             aprilalign2.reef_left(self.fvision, self.drivetrain, self.get_control)
         )
         controller.rightBumper().whileTrue(
             aprilalign2.reef_right(self.fvision, self.drivetrain, self.get_control)
-        )
-        """
-        controller.leftBumper().whileTrue(
-            aprilalign2.reef_align(self.fvision, self.drivetrain, self.get_control)
         )
 
     def dumb_mode(self, controller: commands2.button.CommandXboxController):
@@ -109,18 +104,37 @@ class Continuity:
                     action.stash_coral(self.elevator, self.wrist, self.wheels)
                 )
         if True: # Enable L Setpoints
-            controller.povUp().onTrue(action.goto_l4(self.fvision, self.get_control, lambda: not controller.povUp().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povLeft().onTrue(action.goto_l1(self.fvision, self.get_control, lambda: not controller.povLeft().getAsBoolean(),  self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povRight().onTrue(action.goto_l3(self.fvision, self.get_control, lambda: not controller.povRight().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
-            controller.povDown().onTrue(action.goto_l2(self.fvision, self.get_control, lambda: not controller.povDown().getAsBoolean(), self.wheels, self.drivetrain, self.elevator, self.wrist))
+            c = controller
+            #tmp
+                        # l4, l3, l2, l1
+            c.povUp().and_(c.rightBumper()).onTrue(action.goto_l4(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povUp().and_(c.leftBumper()).onTrue(action.goto_l4(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povRight().and_(c.rightBumper()).onTrue(action.goto_l3(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povRight().and_(c.leftBumper()).onTrue(action.goto_l3(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povDown().and_(c.rightBumper()).onTrue(action.goto_l2(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povDown().and_(c.leftBumper()).onTrue(action.goto_l2(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povLeft().and_(c.rightBumper()).onTrue(action.goto_l1(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povLeft().and_(c.leftBumper()).onTrue(action.goto_l1(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
+                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
         if True: # Enable Cage
-            controller.leftTrigger().onTrue(action.upcage(self.elevator, self.wrist))
-            controller.leftTrigger().onFalse(action.downcage(self.elevator, self.wrist, self.lock))
-        if True: # Algae Setpoint
+            controller.leftTrigger().debounce(0.3).onTrue(action.upcage(self.elevator, self.wrist))
+            controller.leftTrigger().debounce(0.3).onFalse(action.downcage(self.elevator, self.wrist, self.lock))
+        if True: # Enable Algae Setpoint
             controller.a().onTrue(action.low_algae(self.elevator, self.wrist, self.wheels))
             controller.b().onTrue(action.high_algae(self.elevator, self.wrist, self.wheels))
             controller.x().onFalse(action.receive(self.elevator, self.wrist))
-    
+        if True: # Enable Panic
+            controller.back().onTrue(commands2.SequentialCommandGroup(
+                commands2.InstantCommand(lambda: self.drivetrain.gyro.reset()),
+                self.get_tele()
+            ))
 
     def get_tele(self) -> commands2.Command:
         return commands2.ParallelCommandGroup(

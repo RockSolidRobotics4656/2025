@@ -1,4 +1,4 @@
-janky = True
+janky = False
 
 enc_offsets = () #drivetrain wheel offsets
 l1_ext = 0
@@ -15,5 +15,5 @@ if not janky:
     l3_ext = 0.37
     l4_ext = 0.825
 
-    l2_ext = 0.072
-    l3_ext = 0.358
+    #l2_ext = 0.072
+    #l3_ext = 0.358

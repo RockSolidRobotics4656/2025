@@ -24,22 +24,30 @@ def high_algae(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.D
     )
 
 # POSITIONS
-# TODO: Can remove funnel form it
+l_wrist_angle = 230
 def goto_l(v: april.VisionSystem, ps: Callable[[], drive.Polar], 
-        i: Callable[[], bool], wh: depo.DepositorWheels,
         d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist,
-        eheight: float, wangle: float) -> commands2.Command:
-    start = commands2.ParallelDeadlineGroup(
-            commands2.WaitUntilCommand(i),
+        eheight: float, wangle: float, fun: funnel.Funnel, gl: bool) -> commands2.Command:
+    aligncmd = aprilalign2.reef_right(v, d, ps)
+    if gl: aligncmd = aprilalign2.reef_left(v, d, ps)
+    return commands2.ParallelDeadlineGroup(
+            commands2.WaitUntilCommand(fun.is_on_target),
             commands2.RepeatCommand(wrist.goto(wangle)),
             commands2.RepeatCommand(ele.goto(eheight)),
-            aprilalign2.Align(v, d, 90, ps)
+            aligncmd
         )
-    return commands2.SequentialCommandGroup(start, deploy(d, ele, wrist, wh))
-goto_l1 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l1_ext, 230)
-goto_l2 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l2_ext, 230)
-goto_l3 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l3_ext, 230)
-goto_l4 = lambda v, o, i, wh, d, e, w: goto_l(v, o, i, wh, d, e, w, const.l4_ext, 230)
+def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
+    return commands2.SequentialCommandGroup(
+        wheels.deposite(),
+        commands2.ParallelDeadlineGroup(
+            forward(d, 270, 0.2).withTimeout(0.8),
+            commands2.WaitCommand(0.25).andThen(receive(ele, wrist)),
+        )
+    )
+goto_l1 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l1_ext, l_wrist_angle, fun, gl)
+goto_l2 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l2_ext, l_wrist_angle, fun, gl)
+goto_l3 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l3_ext, l_wrist_angle, fun, gl)
+goto_l4 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l4_ext, l_wrist_angle, fun, gl)
 
 # ACTION SEQUENCE
 def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
@@ -59,14 +67,6 @@ def stash_coral(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.
         wrist.goto(90),
     ).andThen(receive(ele, wrist))
 
-def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
-    return commands2.SequentialCommandGroup(
-        wheels.deposite(),
-        commands2.ParallelDeadlineGroup(
-            forward(d, 270, 0.2).withTimeout(0.8),
-            receive(ele, wrist),
-        )
-    )
 
 # CAGE CLIMB
 def upcage(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
