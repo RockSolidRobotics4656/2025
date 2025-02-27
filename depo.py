@@ -39,11 +39,10 @@ class DepositorWrist(commands2.Subsystem):
             self.encoder.reset()
         self._move_raw(speed)
     
-    def update(self) -> commands2.Command:
+    def update(self, clamp=0.8) -> commands2.Command:
         def up():
             measurement = self.encoder()
             correction = self.controller.calculate(measurement)
-            clamp = 0.8
             self.move(control.clamp_mag(clamp, correction))
         return commands2.RunCommand(up, self)
     
@@ -61,10 +60,10 @@ class DepositorWrist(commands2.Subsystem):
             lambda: self.controller.setSetpoint(setpoint), self
         )
 
-    def goto(self, setpoint: float) -> commands2.Command:
+    def goto(self, setpoint: float, clamp=0.8) -> commands2.Command:
         return commands2.SequentialCommandGroup(
             self.set_setpoint(setpoint),
-            self.update().until(self.at_setpoint),
+            self.update(clamp=clamp).until(self.at_setpoint),
             commands2.InstantCommand(lambda: self.move(0))
         )
 

@@ -10,7 +10,7 @@ def normangle(x: float) -> float:
     return x % 360
 
 class Move(commands2.Command):
-    max_linear = 0.4
+    max_linear = 0.8
     tol_linear = 0.05
     max_turn = 0.2
     tol_turn = 1

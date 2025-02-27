@@ -7,28 +7,49 @@ import april
 from wpimath import controller, geometry, filter, trajectory
 
 angle_lookup_table = {
-    6: 300,
-    7: 0,
-    8: 60,
+    # Blue Reef
     17: 60,
     18: 0,
     19: 300,
+    20: 60 + 180,
+    21: 180,
+    22: 300 - 180,
+    # Blue Stations
+    12: 60,
+    13: 300,
+    # Red Reef
+    8: 60,
+    7: 0,
+    6: 300,
+    11: 60 + 180,
+    10: 180,
+    9: 300 - 180,
+    # Red Stations
+    2: 60,
+    1: 300,
 
-    12: 240, #TMP: testing please remove to fix later
-    1: 60, #TMP: testing please remove to fix later
 }
 
-center_offset = 19 / 39
-lr_offset = 10 / 39 / 2
-
+reef_leftoff = 0.2
+reef_rightoff = 0.5
+reef_leftoff_sweep = 0.1
+reef_rightoff_sweep = 0.4
+"""
+def reef_left_sweep(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
+    return Align(vision, drivetrain, 90, ps, reef_leftoff_sweep, l)
+def reef_right_sweep(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
+    return Align(vision, drivetrain, 90, ps, reef_rightoff_sweep, l)
 def reef_left(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
-    return Align(vision, drivetrain, 90, ps, center_offset-lr_offset, l)
+    return Align(vision, drivetrain, 90, ps, reef_leftoff, l)
 def reef_right(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
-    return Align(vision, drivetrain, 90, ps, center_offset+lr_offset, l)
+    return Align(vision, drivetrain, 90, ps, reef_rightoff, l)
+def human_station(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
+    return Align(vision, drivetrain, 270, ps, 0, l)
+"""
 
 class Align(commands2.Command):
     max_blackhole_effect = 0.3
-    def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, ps: Callable[[], drive.Polar], targetlat: float, latpid: float = 0.2):
+    def __init__(self, vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, ps: Callable[[], drive.Polar], targetlat: float, latpid: float = 0.2, spd=0.05):
         self.drivetrain = drivetrain
         self.vision = vision
         self.addRequirements(self.drivetrain)
@@ -38,6 +59,7 @@ class Align(commands2.Command):
         self.ps = ps
         self.targetlat = targetlat
         self.latpid = latpid
+        self.spd = spd
 
     def initialize(self):
         self.odometry = self.drivetrain.create_odometry()
@@ -55,7 +77,9 @@ class Align(commands2.Command):
         self.lat_pid = controller.PIDController(self.latpid, 0, 0)
         self.lat_filter = filter.MedianFilter(10)
         self.alignx = 0
-
+    def dy(self):
+        pose = self.odometry.getPose()
+        return abs(pose.Y())
     def execute(self):
         # Spinout condition
         if self.tagid is None: return
@@ -69,7 +93,7 @@ class Align(commands2.Command):
 
         # Translate
         fwd = drive.Polar(
-            0.05, self.drivetrain.gyro() + self.fwddir
+            self.spd, self.drivetrain.gyro() + self.fwddir
         )
         cont = self.ps()
 

@@ -4,8 +4,8 @@ import commands2
 import wpimath.filter
 import mathutil
 import math
-from wpimath import applyDeadband
 
+import auto
 import aprilalign2
 import drive
 import elevate
@@ -34,7 +34,7 @@ class Continuity:
         self.funnel = funnel.Funnel(5)
 
         # Modes
-        self.smart_mode(self.xbox)
+        self.dumb_mode(self.xbox)
 
     def xbox_warning(self):
         return commands2.StartEndCommand(
@@ -64,10 +64,10 @@ class Continuity:
         controller.a().whileTrue(move.Move(self.drivetrain,
             wpimath.geometry.Translation2d(0.0, 0.0), 180))
         controller.leftBumper().whileTrue(
-            aprilalign2.reef_left(self.fvision, self.drivetrain, self.get_control)
+            aprilalign2.Align(self.fvision, self.drivetrain, 90, self.get_control, aprilalign2.reef_leftoff)
         )
         controller.rightBumper().whileTrue(
-            aprilalign2.reef_right(self.fvision, self.drivetrain, self.get_control)
+            aprilalign2.Align(self.fvision, self.drivetrain, 90, self.get_control, aprilalign2.reef_rightoff)
         )
 
     def dumb_mode(self, controller: commands2.button.CommandXboxController):
@@ -99,29 +99,35 @@ class Continuity:
         if True: # Enable Wrist
             self.wrist.setDefaultCommand(self.wrist.update())
         if True: # Enable Pickup
-            controller.rightTrigger().whileTrue(action.forward(self.drivetrain, 270, 0.1))
+            #controller.rightTrigger().whileTrue(action.forward(self.drivetrain, 270, 0.1))
+            controller.rightTrigger().whileTrue(
+                aprilalign2.Align(self.bvision, self.drivetrain, 270, self.get_control, 0, spd=0.1)
+            )
             controller.rightTrigger().onFalse(
                     action.stash_coral(self.elevator, self.wrist, self.wheels)
                 )
         if True: # Enable L Setpoints
             c = controller
             #tmp
-                        # l4, l3, l2, l1
-            c.povUp().and_(c.rightBumper()).onTrue(action.goto_l4(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
+            # L4 & L1
+            intsignal = c.rightBumper().or_(c.leftBumper()).negate().getAsBoolean
+            funintsignal = lambda: intsignal() or self.funnel.is_on_target()
+            c.povUp().and_(c.rightBumper()).onTrue(action.goto_l4(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, intsignal, False)
+                .andThen(action.deploy4(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povUp().and_(c.leftBumper()).onTrue(action.goto_l4(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, intsignal, True)
+                .andThen(action.deploy4(self.drivetrain, self.elevator, self.wrist, self.wheels)))
+            c.povLeft().and_(c.rightBumper()).onTrue(action.goto_l1(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, intsignal, False)
                 .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
-            c.povUp().and_(c.leftBumper()).onTrue(action.goto_l4(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
+            c.povLeft().and_(c.leftBumper()).onTrue(action.goto_l1(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, intsignal, True)
                 .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
-            c.povRight().and_(c.rightBumper()).onTrue(action.goto_l3(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
+            # L2 & 3
+            c.povRight().and_(c.rightBumper()).onTrue(action.goto_l3(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, funintsignal, False)
                 .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
-            c.povRight().and_(c.leftBumper()).onTrue(action.goto_l3(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
+            c.povRight().and_(c.leftBumper()).onTrue(action.goto_l3(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, funintsignal, True)
                 .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
-            c.povDown().and_(c.rightBumper()).onTrue(action.goto_l2(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
+            c.povDown().and_(c.rightBumper()).onTrue(action.goto_l2(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, funintsignal, False)
                 .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
-            c.povDown().and_(c.leftBumper()).onTrue(action.goto_l2(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
-                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
-            c.povLeft().and_(c.rightBumper()).onTrue(action.goto_l1(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, False)
-                .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
-            c.povLeft().and_(c.leftBumper()).onTrue(action.goto_l1(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, self.funnel, True)
+            c.povDown().and_(c.leftBumper()).onTrue(action.goto_l2(self.fvision, self.get_control, self.drivetrain, self.elevator, self.wrist, funintsignal, True)
                 .andThen(action.deploy(self.drivetrain, self.elevator, self.wrist, self.wheels)))
         if True: # Enable Cage
             controller.leftTrigger().debounce(0.3).onTrue(action.upcage(self.elevator, self.wrist))
@@ -142,6 +148,4 @@ class Continuity:
             self.lock.unlock(),
             )
     def get_auto(self) -> commands2.Command:
-        return commands2.ParallelCommandGroup(
-            commands2.PrintCommand("Hello, World(Driver Station)!")
-        )
+        return auto.get_autonomous(self.drivetrain, self.elevator, self.wrist, self.wheels, self.funnel, self.fvision, self.bvision)

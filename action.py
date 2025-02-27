@@ -1,5 +1,6 @@
 from typing import *
 import commands2
+import functools
 import depo
 import elevate
 import lock
@@ -24,17 +25,19 @@ def high_algae(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.D
     )
 
 # POSITIONS
-l_wrist_angle = 230
-def goto_l(v: april.VisionSystem, ps: Callable[[], drive.Polar], 
+# BUG: impl gwithpause
+def coral_wo_sweep(v: april.VisionSystem, ps: Callable[[], drive.Polar], 
         d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist,
-        eheight: float, wangle: float, fun: funnel.Funnel, gl: bool) -> commands2.Command:
-    aligncmd = aprilalign2.reef_right(v, d, ps)
-    if gl: aligncmd = aprilalign2.reef_left(v, d, ps)
-    return commands2.ParallelDeadlineGroup(
-            commands2.WaitUntilCommand(fun.is_on_target),
-            commands2.RepeatCommand(wrist.goto(wangle)),
-            commands2.RepeatCommand(ele.goto(eheight)),
-            aligncmd
+        eheight: float, wangle: float, fun: Callable[[], bool], xoffset: float) -> commands2.Command:
+        return commands2.ParallelDeadlineGroup(
+            commands2.WaitUntilCommand(fun), reef(v, ps, d, ele, wrist, eheight, wangle, xoffset)
+            )
+def coral_w_sweep(v: april.VisionSystem, ps: Callable[[], drive.Polar], 
+        d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist,
+        eheight: float, wangle: float, fun: funnel.Funnel, xoffset: float) -> commands2.Command:
+        return commands2.SequentialCommandGroup(
+            reef(v, ps, d, ele, wrist, eheight, wangle, xoffset, spd=0.08, latpid=0.25).withTimeout(6.0),
+            forward(d, 0, 0.1).until(fun.is_on_target),
         )
 def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.SequentialCommandGroup(
@@ -44,13 +47,33 @@ def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWri
             commands2.WaitCommand(0.25).andThen(receive(ele, wrist)),
         )
     )
-goto_l1 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l1_ext, l_wrist_angle, fun, gl)
-goto_l2 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l2_ext, l_wrist_angle, fun, gl)
-goto_l3 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l3_ext, l_wrist_angle, fun, gl)
-goto_l4 = lambda vis, cont, dri, ele, wri, fun, gl: goto_l(vis, cont, dri, ele, wri, const.l4_ext, l_wrist_angle, fun, gl)
+def deploy4(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
+    return commands2.SequentialCommandGroup(
+        wheels.deposite(),
+        commands2.ParallelDeadlineGroup(
+            commands2.WaitCommand(0.4).andThen(wrist.goto(90, clamp=0.4)),
+            wheels.eject(0.6)
+        ),
+        forward(d, 270, 0.1).withTimeout(0.8),
+        receive(ele, wrist)
+        )
+goto_l1 = lambda vis, cont, dri, ele, wri, interrupt, gl: coral_wo_sweep(vis, cont, dri, ele, wri, const.l1_ext, const.l_wrist_angle, interrupt, aprilalign2.reef_leftoff if gl else aprilalign2.reef_rightoff)
+goto_l2 = lambda vis, cont, dri, ele, wri, interrupt, gl: coral_wo_sweep(vis, cont, dri, ele, wri, const.l2_ext, const.l_wrist_angle, interrupt, aprilalign2.reef_leftoff if gl else aprilalign2.reef_rightoff)
+goto_l3 = lambda vis, cont, dri, ele, wri, interrupt, gl: coral_wo_sweep(vis, cont, dri, ele, wri, const.l3_ext, const.l_wrist_angle, interrupt, aprilalign2.reef_leftoff if gl else aprilalign2.reef_rightoff)
+goto_l4 = lambda vis, cont, dri, ele, wri, interrupt, gl: coral_wo_sweep(vis, cont, dri, ele, wri, const.l4_ext, const.l_wrist_angle-10, interrupt, aprilalign2.reef_leftoff if gl else aprilalign2.reef_rightoff)
+
+def reef(v: april.VisionSystem, ps: Callable[[], drive.Polar], 
+        d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist,
+        eheight: float, wangle: float, xoffset: float, spd=0.05, latpid=0.2) -> commands2.Command:
+    return commands2.ParallelCommandGroup(
+            commands2.RepeatCommand(wrist.goto(wangle)),
+            commands2.RepeatCommand(ele.goto(eheight)),
+            aprilalign2.Align(v, d, 90, ps, xoffset, spd=spd, latpid=latpid)
+        )
 
 # ACTION SEQUENCE
 def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
+    # TODO: Place to update code to remove the safety check
     return commands2.ParallelCommandGroup(
         commands2.SequentialCommandGroup(
             wrist.goto(0),
@@ -64,7 +87,7 @@ def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Comm
 def stash_coral(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.ParallelDeadlineGroup(
         wheels.pickup(),
-        wrist.goto(90),
+        wrist.goto(90, clamp=0.4),
     ).andThen(receive(ele, wrist))
 
 
