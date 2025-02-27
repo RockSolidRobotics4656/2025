@@ -21,10 +21,10 @@ class Elevator(commands2.Subsystem):
         self.switch = wpilib.DigitalInput(swi_slot)
         #self.controller = wpimath.controller.PIDController(5.0, 0, 0) # TODO: Tune
         self.controller = wpimath.controller.ProfiledPIDController(6.5, 0, 0,
-            wpimath.trajectory.TrapezoidProfile.Constraints(1, 0.2))
+            wpimath.trajectory.TrapezoidProfile.Constraints(1, 0.4))
         self.controller.setTolerance(0.005)
     
-    def update(self, clamp = 0.6) -> commands2.Command:
+    def update(self, clamp = 1.0) -> commands2.Command:
         def up():
             measurement = self.height()
             correction = self.controller.calculate(measurement)

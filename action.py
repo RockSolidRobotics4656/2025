@@ -10,6 +10,13 @@ import aprilalign2
 import april
 import funnel
 
+def fake_start(wrist: depo.DepositorWrist, elevator: elevate.Elevator, lk: lock.ClimbLock) -> commands2.Command:
+    # This is a temporary fix
+    return wrist.fake_home().andThen(commands2.ParallelCommandGroup(
+        receive(elevator, wrist),
+        lk.unlock(),
+        ))
+
 # Algae
 def low_algae(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.ParallelCommandGroup(
@@ -77,7 +84,6 @@ def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Comm
     return commands2.ParallelCommandGroup(
         commands2.SequentialCommandGroup(
             wrist.goto(0),
-            wrist.home(),
         ),
         commands2.SequentialCommandGroup(
             ele.goto(0.0),
@@ -114,3 +120,7 @@ def forward(d: drive.SwerveDrive, angle: float, speed: float):
         lambda: False,
         d
     )
+def april_unwrap(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, fwddir: float, ps: Callable[[], drive.Polar], targetlat: float, latpid: float = 0.2, spd=0.05):
+    if vision() is not None:
+        return aprilalign2.Align(vision, drivetrain, 270, ps, 0, latpid=latpid, spd=spd)
+    return drivetrain.controller_drive(ps, 0)

@@ -11,6 +11,7 @@ import phoenix5
 import rev
 import wpimath
 
+TMP_RESET_ANGLE_AT_HOME = -30 # BUG, TMP, TODO: This is a temporary value for the elevator
 class DepositorWrist(commands2.Subsystem):
     def __init__(self, janky: bool, id: int, limit_slot: int, enc: Tuple[int, int]):
         super().__init__()
@@ -23,9 +24,14 @@ class DepositorWrist(commands2.Subsystem):
         tmp = wpilib.Encoder(enc[0], enc[1])
         self.encoder = encoder.EncoderAdapter(tmp.get)
         self.encoder.set_ticks_per_unit(-710 / 225)
+        # BUG: Fix with the height new 
         self.controller = wpimath.controller.PIDController(0.2, 0, 0)
         self.controller.setTolerance(1)
 
+
+    # UNSAFE, BUG fakehome
+    def fake_home(self) -> commands2.Command:
+        return commands2.InstantCommand(self.encoder.reset(TMP_RESET_ANGLE_AT_HOME))
     # Unsafe Operation / Unchecked
     def _move_raw(self, speed: float) -> None:
         if self.janky:
@@ -36,7 +42,7 @@ class DepositorWrist(commands2.Subsystem):
     def move(self, speed: float) -> None:
         if speed < 0 and self.is_home():
             speed *= 0
-            self.encoder.reset()
+            self.encoder.reset(TMP_RESET_ANGLE_AT_HOME)
         self._move_raw(speed)
     
     def update(self, clamp=0.8) -> commands2.Command:
@@ -75,7 +81,7 @@ class DepositorWrist(commands2.Subsystem):
             commands2.RunCommand(
                 lambda: self.move(-0.35), self
                 ).until(self.is_home),
-            commands2.InstantCommand(lambda: self.encoder.reset(), self),
+            commands2.InstantCommand(lambda: self.encoder.reset(TMP_RESET_ANGLE_AT_HOME), self),
         ).withTimeout(5.0)
 
     def periodic(self):

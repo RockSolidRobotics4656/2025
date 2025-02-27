@@ -34,18 +34,6 @@ reef_leftoff = 0.2
 reef_rightoff = 0.5
 reef_leftoff_sweep = 0.1
 reef_rightoff_sweep = 0.4
-"""
-def reef_left_sweep(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
-    return Align(vision, drivetrain, 90, ps, reef_leftoff_sweep, l)
-def reef_right_sweep(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
-    return Align(vision, drivetrain, 90, ps, reef_rightoff_sweep, l)
-def reef_left(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
-    return Align(vision, drivetrain, 90, ps, reef_leftoff, l)
-def reef_right(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
-    return Align(vision, drivetrain, 90, ps, reef_rightoff, l)
-def human_station(vision: april.VisionSystem, drivetrain: drive.SwerveDrive, ps: Callable[[], drive.Polar], l=0.2):
-    return Align(vision, drivetrain, 270, ps, 0, l)
-"""
 
 class Align(commands2.Command):
     max_blackhole_effect = 0.3

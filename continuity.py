@@ -34,7 +34,8 @@ class Continuity:
         self.funnel = funnel.Funnel(5)
 
         # Modes
-        self.dumb_mode(self.xbox)
+        # Did you remember the fake start in teleop enable
+        self.smart_mode(self.xbox)
 
     def xbox_warning(self):
         return commands2.StartEndCommand(
@@ -99,10 +100,12 @@ class Continuity:
         if True: # Enable Wrist
             self.wrist.setDefaultCommand(self.wrist.update())
         if True: # Enable Pickup
-            #controller.rightTrigger().whileTrue(action.forward(self.drivetrain, 270, 0.1))
+            controller.rightTrigger().whileTrue(action.forward(self.drivetrain, 270, 0.2))
+            """
             controller.rightTrigger().whileTrue(
-                aprilalign2.Align(self.bvision, self.drivetrain, 270, self.get_control, 0, spd=0.1)
+                action.april_unwrap(self.bvision, self.drivetrain, 270, self.get_control, 0, latpid=0, spd=0.1)
             )
+            """
             controller.rightTrigger().onFalse(
                     action.stash_coral(self.elevator, self.wrist, self.wheels)
                 )
@@ -143,9 +146,8 @@ class Continuity:
             ))
 
     def get_tele(self) -> commands2.Command:
-        return commands2.ParallelCommandGroup(
-            action.receive(self.elevator, self.wrist),
-            self.lock.unlock(),
-            )
+        # BUG Source
+        return commands2.PrintCommand("Good luck!")
+        return action.fake_start(self.wrist, self.elevator, self.lock)
     def get_auto(self) -> commands2.Command:
-        return auto.get_autonomous(self.drivetrain, self.elevator, self.wrist, self.wheels, self.funnel, self.fvision, self.bvision)
+        return auto.get_autonomous(self.drivetrain, self.elevator, self.wrist, self.wheels, self.funnel, self.fvision, self.bvision, self.lock)
