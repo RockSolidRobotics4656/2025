@@ -100,12 +100,11 @@ class Continuity:
         if True: # Enable Wrist
             self.wrist.setDefaultCommand(self.wrist.update())
         if True: # Enable Pickup
-            controller.rightTrigger().whileTrue(action.forward(self.drivetrain, 270, 0.2))
-            """
-            controller.rightTrigger().whileTrue(
-                action.april_unwrap(self.bvision, self.drivetrain, 270, self.get_control, 0, latpid=0, spd=0.1)
-            )
-            """
+            controller.rightTrigger().whileTrue(commands2.ParallelCommandGroup(
+                action.forward(self.drivetrain, 270, 0.2),
+                self.wheels.intake(1.0),
+                action.receive(self.elevator, self.wrist)
+                ))
             controller.rightTrigger().onFalse(
                     action.stash_coral(self.elevator, self.wrist, self.wheels)
                 )

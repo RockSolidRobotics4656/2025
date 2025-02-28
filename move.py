@@ -23,7 +23,7 @@ class Move(commands2.Command):
     
     def initialize(self):
         self.linear_pid = controller.ProfiledPIDController(1.0, 0, 0,
-            trajectory.TrapezoidProfile.Constraints(1000, 0.1))
+            trajectory.TrapezoidProfile.Constraints(1000, 0.2))
         self.linear_pid.setTolerance(self.tol_linear)
         self.angular_pid = controller.PIDController(0.04, 0, 0)
         self.angular_pid.enableContinuousInput(0, 360)

@@ -119,6 +119,6 @@ class DepositorWheels(commands2.Subsystem):
     def pickup(self) -> commands2.Command:
         return self.intake(1.0).until(self.is_queued).withTimeout(2.0)
     def deposite(self) -> commands2.Command:
-        return self.eject(1.0).withTimeout(1.5)
+        return self.eject(1.0).withTimeout(1.3)
     def periodic(self):
         ncoms.wheel_tab.putBoolean("Queued", self.is_queued())

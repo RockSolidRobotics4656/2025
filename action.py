@@ -43,14 +43,14 @@ def coral_w_sweep(v: april.VisionSystem, ps: Callable[[], drive.Polar],
         d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist,
         eheight: float, wangle: float, fun: funnel.Funnel, xoffset: float) -> commands2.Command:
         return commands2.SequentialCommandGroup(
-            reef(v, ps, d, ele, wrist, eheight, wangle, xoffset, spd=0.08, latpid=0.25).withTimeout(6.0),
-            forward(d, 0, 0.1).until(fun.is_on_target),
+            reef(v, ps, d, ele, wrist, eheight, wangle, xoffset, spd=0.1, latpid=0.2).withTimeout(6.0),
+            forward(d, 0, 0.15).until(fun.is_on_target),
         )
 def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.SequentialCommandGroup(
         wheels.deposite(),
         commands2.ParallelDeadlineGroup(
-            forward(d, 270, 0.2).withTimeout(0.8),
+            forward(d, 270, 0.2).withTimeout(0.6),
             commands2.WaitCommand(0.25).andThen(receive(ele, wrist)),
         )
     )
@@ -83,7 +83,7 @@ def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Comm
     # TODO: Place to update code to remove the safety check
     return commands2.ParallelCommandGroup(
         commands2.SequentialCommandGroup(
-            wrist.goto(0),
+            wrist.goto(-5),
         ),
         commands2.SequentialCommandGroup(
             ele.goto(0.0),
@@ -93,7 +93,7 @@ def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Comm
 def stash_coral(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.ParallelDeadlineGroup(
         wheels.pickup(),
-        wrist.goto(90, clamp=0.4),
+        wrist.goto(90, clamp=0.5),
     ).andThen(receive(ele, wrist))
 
 

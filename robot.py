@@ -7,7 +7,6 @@ import continuity
 class Robot(commands2.TimedCommandRobot):
     auto = None
     def robotInit(self):
-        
         self.container = continuity.Continuity()
     def robotPeriodic(self):
         commands2.CommandScheduler.getInstance().run()
