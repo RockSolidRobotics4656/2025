@@ -70,8 +70,7 @@ class DepositorWrist(commands2.Subsystem):
         return commands2.SequentialCommandGroup(
             self.set_setpoint(setpoint),
             self.update(clamp=clamp).until(self.at_setpoint),
-            commands2.InstantCommand(lambda: self.move(0))
-        )
+        ).handleInterrupt(lambda: self.move(0))
 
     def is_home(self) -> bool:
         return not self.switch.get()

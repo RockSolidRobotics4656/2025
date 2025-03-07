@@ -32,6 +32,7 @@ angle_lookup_table = {
 
 reef_leftoff = 0.2
 reef_rightoff = 0.5
+reef_middle_sweep = (reef_leftoff + reef_rightoff) / 2
 reef_leftoff_sweep = 0.1
 reef_rightoff_sweep = 0.4
 

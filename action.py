@@ -57,11 +57,8 @@ def deploy(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWri
 def deploy4(d: drive.SwerveDrive, ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
     return commands2.SequentialCommandGroup(
         wheels.deposite(),
-        commands2.ParallelDeadlineGroup(
-            commands2.WaitCommand(0.4).andThen(wrist.goto(90, clamp=0.4)),
-            wheels.eject(0.6)
-        ),
-        forward(d, 270, 0.1).withTimeout(0.8),
+        wrist.goto(120),
+        forward(d, 270, 0.1).withTimeout(1.0),
         receive(ele, wrist)
         )
 goto_l1 = lambda vis, cont, dri, ele, wri, interrupt, gl: coral_wo_sweep(vis, cont, dri, ele, wri, const.l1_ext, const.l_wrist_angle, interrupt, aprilalign2.reef_leftoff if gl else aprilalign2.reef_rightoff)

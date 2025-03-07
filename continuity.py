@@ -2,6 +2,7 @@ import wpilib
 import wpimath
 import commands2
 import wpimath.filter
+import wpimath.geometry
 import mathutil
 import math
 
@@ -35,7 +36,7 @@ class Continuity:
 
         # Modes
         # Did you remember the fake start in teleop enable
-        self.smart_mode(self.xbox)
+        self.test_mode(self.xbox)
 
     def xbox_warning(self):
         return commands2.StartEndCommand(
@@ -69,6 +70,10 @@ class Continuity:
         )
         controller.rightBumper().whileTrue(
             aprilalign2.Align(self.fvision, self.drivetrain, 90, self.get_control, aprilalign2.reef_rightoff)
+        )
+        controller.rightTrigger().whileTrue(
+            move.TrajectoryMove(self.drivetrain, wpimath.geometry.Translation2d(0, 0),
+                45, max_linear=0.3, tol_linear=0.1)
         )
 
     def dumb_mode(self, controller: commands2.button.CommandXboxController):

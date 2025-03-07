@@ -27,6 +27,7 @@ def mix_polar(a: Polar, b: Polar) -> Polar:
     return Polar(dist, angle)
 
 class SwerveDrive(commands2.Subsystem):
+    GROUNDED_DIST = 0.15
     def __init__(self, enc_off=(0, 0, 0, 0)) -> None:
         super().__init__()
         self.cells = (
@@ -54,7 +55,10 @@ class SwerveDrive(commands2.Subsystem):
         self.gyro.set_ticks_per_unit(1.0)
         self.gyro.reset()
         self.odometry = self.create_odometry()
-    
+
+        # Font / Back Sensors
+        self.back_sensor = phoenix6.hardware.CANrange(18)
+        self.front_sensor = phoenix6.hardware.CANrange(19)
 
     def periodic(self):
         self.cells[0].telemetry(ncoms.drtelem_tab, "Cell 1"),
@@ -68,6 +72,21 @@ class SwerveDrive(commands2.Subsystem):
         ncoms.drtelem_tab.putNumber("x", pose.X())
         ncoms.drtelem_tab.putNumber("y", pose.Y())
         ncoms.drtelem_tab.putNumber("a", pose.rotation().degrees())
+        ncoms.dsprog_tab.putNumber("x", pose.X())
+        ncoms.dsprog_tab.putNumber("y", pose.Y())
+        ncoms.dsprog_tab.putNumber("a", pose.rotation().degrees())
+        ncoms.drtelem_tab.putBoolean("Front Grounded", self.is_front_grounded())
+        ncoms.drtelem_tab.putBoolean("Back Grounded", self.is_back_grounded())
+
+    def is_back_grounded(self) -> bool:
+        detected = self.back_sensor.get_is_detected().value
+        distance = self.back_sensor.get_distance().value
+        return detected and distance < self.GROUNDED_DIST
+
+    def is_front_grounded(self) -> bool:
+        detected = self.front_sensor.get_is_detected().value
+        distance = self.front_sensor.get_distance().value
+        return detected and distance < self.GROUNDED_DIST
     
     def create_odometry(self):
         angle = wpimath.geometry.Rotation2d.fromDegrees(self.gyro())

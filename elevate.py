@@ -45,12 +45,11 @@ class Elevator(commands2.Subsystem):
             lambda: self.controller.setGoal(setpoint), self
         )
 
-    def goto(self, setpoint: float) -> commands2.Command:
+    def goto(self, setpoint: float, clamp=1.0) -> commands2.Command:
         return commands2.SequentialCommandGroup(
             self.set_setpoint(setpoint),
-            self.update().until(self.at_setpoint),
-            commands2.InstantCommand(lambda: self.move(0))
-        )
+            self.update(clamp=clamp).until(self.at_setpoint),
+        ).handleInterrupt(lambda: self.move(0))
     
     def _move_raw(self, speed: float) -> None:
         self.motora.set(-speed)
