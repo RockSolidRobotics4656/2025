@@ -18,6 +18,13 @@ if not janky:
     l3_ext = 0.365
     l4_ext = 0.825
 
+    # Last Working Setpoints
+    l1_ext = 0
+    l2_ext = 0.075
+    l3_ext = 0.365
+    l4_ext = 0.835
+
+    # Babbit Settings
     l1_ext = 0
     l2_ext = 0.075
     l3_ext = 0.365

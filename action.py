@@ -10,12 +10,6 @@ import aprilalign2
 import april
 import funnel
 
-def fake_start(wrist: depo.DepositorWrist, elevator: elevate.Elevator, lk: lock.ClimbLock) -> commands2.Command:
-    # This is a temporary fix
-    return wrist.fake_home().andThen(commands2.ParallelCommandGroup(
-        receive(elevator, wrist),
-        lk.unlock(),
-        ))
 
 # Algae
 def low_algae(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
@@ -84,7 +78,6 @@ def receive(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Comm
         ),
         commands2.SequentialCommandGroup(
             ele.goto(0.0),
-            ele.home()
         )
     )
 def stash_coral(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.DepositorWheels) -> commands2.Command:
@@ -97,13 +90,13 @@ def stash_coral(ele: elevate.Elevator, wrist: depo.DepositorWrist, wheels: depo.
 # CAGE CLIMB
 def upcage(ele: elevate.Elevator, wrist: depo.DepositorWrist) -> commands2.Command:
     return commands2.ParallelCommandGroup(
-        ele.goto(0.20),
-        wrist.goto(180),
+        ele.goto(0.20, 0.3),
+        wrist.goto(180, 0.8),
     )
 def downcage(ele: elevate.Elevator, wrist: depo.DepositorWrist, latch: lock.ClimbLock) -> commands2.Command:
     return commands2.SequentialCommandGroup(
-        ele.goto(0).withTimeout(1.25),
-        wrist.goto(90),
+        ele.goto(0, 0.3).withTimeout(1.25),
+        wrist.goto(90, 0.8),
         latch.async_lock(),
         ele.home(dft=-0.45),
     )

@@ -1,10 +1,12 @@
 from typing import *
 import math
 import commands2
-from wpimath import geometry, filter, controller, trajectory
+from wpimath import geometry, filter, controller 
+import wpimath
 import drive
 import control
 import ncoms
+import trajectory
 import abc
 
 def normangle(x: float) -> float:
@@ -26,11 +28,13 @@ class GeneralMove(commands2.Command):
     
     def initialize(self):
         self.linear_pid = controller.ProfiledPIDController(1.0, 0, 0,
-            trajectory.TrapezoidProfile.Constraints(1000, 0.2))
+            wpimath.trajectory.TrapezoidProfile.Constraints(1000, 0.2))
         self.linear_pid.setTolerance(self.tol_linear)
         self.angular_pid = controller.PIDController(0.04, 0, 0)
         self.angular_pid.enableContinuousInput(0, 360)
         self.angular_pid.setTolerance(self.tol_turn)
+        self.postinit()
+    def postinit(self): pass
     
     def dst(self) -> float: raise NotImplemented("Implement for the specific move case")
     def update_carrot(self) -> None: pass
@@ -68,7 +72,20 @@ class Move(GeneralMove):
         return math.sqrt(dx**2 + dy**2)
 
 class TrajectoryMove(GeneralMove):
+    def __init__(self, d: drive.SwerveDrive, position: geometry.Translation2d, angle: Optional[float],
+                 linear_spd: float, turn_spd: float,
+                 linear_tol=0.05, turn_tol=1):
+        super().__init__(d, position, angle, linear_spd, linear_tol, turn_spd, turn_tol)
+    def postinit(self):
+        self.traj = ncoms.get_trajectory()
     def dst(self) -> float:
-        return ncoms.get_endpoint_dist()
+        current_position = self.drive.odometry.getPose().translation()
+        t = self.traj.find_closest_t_value(trajectory.Point(current_position.X(), current_position.Y()))
+        total_len = self.traj.total_length()
+        return total_len - t
     def update_carrot(self) -> None:
-        self.destination = ncoms.get_carrot()
+        current_position = self.drive.odometry.getPose().translation()
+        t = self.traj.find_closest_t_value(trajectory.Point(current_position.X(), current_position.Y()))
+        follow_t = self.traj.generate_carrot(t)
+        carrot = self.traj.sample(follow_t)
+        self.destination = geometry.Translation2d(carrot.x, carrot.y)

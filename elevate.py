@@ -20,15 +20,18 @@ class Elevator(commands2.Subsystem):
         self.height.set_ticks_per_unit(-110.0)
         self.switch = wpilib.DigitalInput(swi_slot)
         #self.controller = wpimath.controller.PIDController(5.0, 0, 0) # TODO: Tune
-        self.controller = wpimath.controller.ProfiledPIDController(6.5, 0, 0,
-            wpimath.trajectory.TrapezoidProfile.Constraints(1, 0.4))
+        self.controller = wpimath.controller.ProfiledPIDController(4.5, 0, 0,
+            wpimath.trajectory.TrapezoidProfile.Constraints(1, 0.8))
         self.controller.setTolerance(0.005)
     
-    def update(self, clamp = 1.0) -> commands2.Command:
+    def update(self, clamp: float) -> commands2.Command:
         def up():
             measurement = self.height()
             correction = self.controller.calculate(measurement)
-            self.move(control.clamp_mag(clamp, correction))
+            if not self.at_setpoint():
+                self.move(control.clamp_mag(clamp, correction))
+            if self.at_setpoint():
+                self.move(0)
         return commands2.RunCommand(up, self)
 
     def test(self, speed: float) -> commands2.Command:
@@ -39,16 +42,19 @@ class Elevator(commands2.Subsystem):
     
     def at_setpoint(self) -> bool:
         return self.controller.atGoal()
+    
+    def get_distance(self) -> float:
+        return abs(self.controller.getPositionError())
 
     def set_setpoint(self, setpoint: float) -> commands2.Command:
         return commands2.InstantCommand(
             lambda: self.controller.setGoal(setpoint), self
         )
 
-    def goto(self, setpoint: float, clamp=1.0) -> commands2.Command:
+    def goto(self, setpoint: float, clamp: float) -> commands2.Command:
         return commands2.SequentialCommandGroup(
             self.set_setpoint(setpoint),
-            self.update(clamp=clamp).until(self.at_setpoint),
+            self.update(clamp).until(self.at_setpoint),
         ).handleInterrupt(lambda: self.move(0))
     
     def _move_raw(self, speed: float) -> None:
@@ -73,7 +79,7 @@ class Elevator(commands2.Subsystem):
         ).withTimeout(5.0)
 
     def is_bottomed(self) -> bool:
-        return self.switch.get()
+        return not self.switch.get()
 
     def periodic(self):
         ncoms.ele_tab.putNumber("EHeight", self.height()),

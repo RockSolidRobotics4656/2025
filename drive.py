@@ -129,6 +129,8 @@ class SwerveDrive(commands2.Subsystem):
         def tick():
             self.polar_drive(dir(), r(), relative=False)
         return commands2.RunCommand(tick, self)
+    def stop(self) -> commands2.Command:
+        return commands2.InstantCommand(lambda: self.polar_drive(Polar(0, 0), 0))
 
 class SwerveCell:
     def __init__(self, linearid: int, turnid: int, angleid: int, turn_offset: float = 0.0):

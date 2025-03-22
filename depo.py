@@ -72,6 +72,9 @@ class DepositorWrist(commands2.Subsystem):
             self.update(clamp=clamp).until(self.at_setpoint),
         ).handleInterrupt(lambda: self.move(0))
 
+    def get_distance(self) -> float:
+        return abs(self.controller.getError())
+
     def is_home(self) -> bool:
         return not self.switch.get()
 
