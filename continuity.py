@@ -121,12 +121,15 @@ class Continuity:
             controller.a().onTrue(action2.release_low_algae(self.drivetrain, self.fvision, self.positional, self.wheels))
             controller.b().onTrue(action2.release_high_algae(self.drivetrain, self.fvision, self.positional, self.wheels))
             controller.x().onTrue(self.positional.stow())
-            #controller.y().onTrue(action2.release_low_algae(self.drivetrain, self.fvision, self.positional, self.wheels))
+            controller.y().onTrue(action2.low_algae(self.positional, self.wheels))
         if True: # Enable Climb
             controller.leftTrigger().onTrue(action2.upcage(self.positional))
             controller.leftTrigger().onFalse(action2.downcage(self.positional, self.lock))
+        if True: # Panic Buttons
+            controller.back().onTrue(self.positional.wrist.home(
+                lambda: not controller.back().getAsBoolean()))
 
     def get_tele(self) -> commands2.Command:
         return self.lock.async_unlock()
     def get_auto(self) -> commands2.Command:
-        return auto.get_autonomous(self.drivetrain, self.elevator, self.wrist, self.wheels, self.funnel, self.fvision, self.bvision, self.lock)
+        return auto.get_autonomous(self.drivetrain, self.positional, self.wheels, self.funnel, self.fvision, self.bvision, self.lock)

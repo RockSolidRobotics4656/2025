@@ -76,7 +76,7 @@ class Elevator(commands2.Subsystem):
                 self
             ).until(self.is_bottomed),
             commands2.InstantCommand(lambda: self.height.reset(), self),
-        ).withTimeout(5.0)
+        ).withTimeout(3.0)
 
     def is_bottomed(self) -> bool:
         return not self.switch.get()

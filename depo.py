@@ -11,7 +11,7 @@ import phoenix5
 import rev
 import wpimath
 
-TMP_RESET_ANGLE_AT_HOME = -30 # BUG, TMP, TODO: This is a temporary value for the elevator
+TMP_RESET_ANGLE_AT_HOME = -35 # BUG, TMP, TODO: This is a temporary value for the elevator
 class DepositorWrist(commands2.Subsystem):
     def __init__(self, janky: bool, id: int, limit_slot: int, enc: Tuple[int, int]):
         super().__init__()
@@ -28,8 +28,6 @@ class DepositorWrist(commands2.Subsystem):
         self.controller = wpimath.controller.PIDController(0.2, 0, 0)
         self.controller.setTolerance(1)
 
-
-    # UNSAFE, BUG fakehome
     def fake_home(self) -> commands2.Command:
         return commands2.InstantCommand(self.encoder.reset(TMP_RESET_ANGLE_AT_HOME))
     # Unsafe Operation / Unchecked
@@ -40,9 +38,6 @@ class DepositorWrist(commands2.Subsystem):
             self.wrist_motor.set(-speed)
     
     def move(self, speed: float) -> None:
-        if speed < 0 and self.is_home():
-            speed *= 0
-            self.encoder.reset(TMP_RESET_ANGLE_AT_HOME)
         self._move_raw(speed)
     
     def update(self, clamp=0.8) -> commands2.Command:
@@ -78,13 +73,13 @@ class DepositorWrist(commands2.Subsystem):
     def is_home(self) -> bool:
         return not self.switch.get()
 
-    def home(self) -> commands2.Command:
+    def home(self, start_rev: Callable[[], bool]) -> commands2.Command:
+        ready = lambda: start_rev() and not self.is_home()
         return commands2.SequentialCommandGroup(
-            commands2.RunCommand(
-                lambda: self.move(-0.35), self
-                ).until(self.is_home),
-            commands2.InstantCommand(lambda: self.encoder.reset(TMP_RESET_ANGLE_AT_HOME), self),
-        ).withTimeout(5.0)
+            commands2.RunCommand(lambda: self.move(0.3), self).until(ready),
+            commands2.RunCommand(lambda: self.move(-0.2), self).until(self.is_home),
+            commands2.InstantCommand(lambda: self.encoder.reset(noffset=95))
+        ).finallyDo(lambda _: self.move(0))
 
     def periodic(self):
         ncoms.wrist_tab.putBoolean("Homed", self.is_home())
